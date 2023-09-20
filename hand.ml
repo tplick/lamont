@@ -3,6 +3,9 @@ type suit = Club | Diamond | Heart | Spade
 type rank = R2 | R3 | R4 | R5 | R6 | R7 | R8 | R9 | R10 | RJ | RQ | RK | RA
 type card = Card of suit * rank
 
+let suit_of_card (Card (suit, _)) = suit
+let rank_of_card (Card (_, rank)) = rank
+
 let all_suits = [Club; Diamond; Heart; Spade]
 let all_ranks = [R2; R3; R4; R5; R6; R7; R8; R9; R10; RJ; RQ; RK; RA]
 let all_suit_string = "\u{2663}\u{2662}\u{2661}\u{2660}"
@@ -40,7 +43,8 @@ type deal = Deal of {
     d_hands: hand list;
     d_to_move: int;
     d_played: card list;
-    d_tricks: int * int
+    d_tricks: int * int;
+    d_turns: int
 }
 
 let rec deal_hands () =
@@ -56,7 +60,8 @@ let new_deal () =
         d_hands = [Hand a; Hand b; Hand c; Hand d];
         d_to_move = 0;
         d_played = [];
-        d_tricks = (0, 0)
+        d_tricks = (0, 0);
+        d_turns = 0
     }
 
 
@@ -70,6 +75,9 @@ and get_lead' = function
 
 let get_playable_cards (Deal d as deal) =
     let (Hand hand) = List.nth d.d_hands d.d_to_move in
+    if d.d_turns land 3 = 0
+        then hand
+        else
     match get_lead deal with
         | None -> hand
         | Some (Card (suit, rank)) ->
@@ -80,17 +88,96 @@ let get_playable_cards (Deal d as deal) =
 let hand_without_card card (Hand h) =
     Hand (List.filter ((<>) card) h)
 
-let deal_after_playing card (Deal d) =
+let rec rotate_to_front list elt =
+    match list with
+        | [] -> []
+        | x :: xs when x = elt -> list
+        | x :: xs -> rotate_to_front (xs @ [x]) elt
+
+let rotate_to_back list elt =
+    match rotate_to_front list elt with
+        | [] -> []
+        | x :: xs -> xs @ [x]
+
+let rotate_deal_to_winner (Deal d as deal) =
+    match get_lead deal with
+        | Some (Card (lead_suit, lead_rank) as lead) ->
+            let winning_card = ref lead and idx = ref 3 in
+            for j = 0 to 2 do
+                let Card (suit, rank) as play = List.nth d.d_played j
+                in if suit = lead_suit && rank > rank_of_card !winning_card
+                        then (idx := j; winning_card := play)
+            done;
+            idx := 3 - !idx;
+            let winner = (d.d_to_move + !idx) land 3
+            and (ew_tricks, ns_tricks) = d.d_tricks
+            in Deal {d with d_to_move = winner;
+                            d_played = rotate_to_back d.d_played !winning_card;
+                            d_tricks = (ew_tricks + 1 - (winner land 1),
+                                        ns_tricks +     (winner land 1))}
+        | None -> raise (Failure "impossible")
+
+let end_trick (Deal d as deal) =
+    if d.d_turns land 3 = 0
+        then rotate_deal_to_winner deal
+        else deal
+
+let is_new_trick (Deal d) =
+    d.d_turns land 3 = 0
+
+let deal_after_playing card (Deal d as deal) =
     let child = Deal {
         d with d_hands = List.map (fun h -> hand_without_card card h) d.d_hands;
-               d_played = card :: d.d_played;
-               d_to_move = (d.d_to_move + 1) land 3
+               d_played = card :: (if is_new_trick deal then [] else d.d_played);
+               d_to_move = (d.d_to_move + 1) land 3;
+               d_turns = d.d_turns + 1
     }
-    in child
+    in end_trick child
 
 let random_child deal =
     match get_playable_cards deal with
         | [] -> deal
         | cards -> let card = List.nth cards (Random.int @@ List.length cards)
                    in deal_after_playing card deal
+
+
+let print_hand name (Hand h) =
+    Printf.printf "%s:  " name;
+    List.iter (fun card -> Printf.printf "%s " (string_of_card card)) h
+
+let current_card_played_by (Deal d) player =
+    let cards = ref d.d_played and player_it = ref @@ (d.d_to_move - 1) land 3
+    in
+    while !cards <> [] && !player_it <> player do
+        cards := List.tl !cards;
+        player_it := (!player_it - 1) land 3
+    done;
+    match !cards with
+        | x :: xs -> Some x
+        | [] -> None
+
+let print_deal (Deal d as deal) =
+    let idx = ref 0 in
+    List.iter2
+        (fun name hand -> Printf.printf "%s " (if d.d_to_move = !idx then "->" else "  ");
+                          print_hand name hand;
+                         (match current_card_played_by deal !idx with
+                                | Some card -> Printf.printf "   (%s)" (string_of_card card)
+                                | None -> ());
+                          Printf.printf "\n";
+                          incr idx)
+        ["West"; "North"; "East"; "South"] d.d_hands;
+    let (ew_tricks, ns_tricks) = d.d_tricks in
+    Printf.printf "EW: %d       NS: %d\n" ew_tricks ns_tricks;
+    Printf.printf "%!"
+
+let play_test () =
+    let deal = ref @@ new_deal ()
+    in print_deal !deal;
+    for i = 1 to 52 do
+        Unix.sleep 1;
+        deal := random_child !deal;
+        Printf.printf "\n";
+        print_deal !deal
+    done
 
