@@ -44,7 +44,8 @@ type deal = Deal of {
     d_to_move: int;
     d_played: card list;
     d_tricks: int * int;
-    d_turns: int
+    d_turns: int;
+    d_last_play: card option
 }
 
 let rec deal_hands () =
@@ -61,7 +62,8 @@ let new_deal () =
         d_to_move = 0;
         d_played = [];
         d_tricks = (0, 0);
-        d_turns = 0
+        d_turns = 0;
+        d_last_play = None
     }
 
 
@@ -130,9 +132,12 @@ let deal_after_playing card (Deal d as deal) =
         d with d_hands = List.map (fun h -> hand_without_card card h) d.d_hands;
                d_played = card :: (if is_new_trick deal then [] else d.d_played);
                d_to_move = (d.d_to_move + 1) land 3;
-               d_turns = d.d_turns + 1
+               d_turns = d.d_turns + 1;
+               d_last_play = Some card
     }
     in end_trick child
+
+let get_last_play (Deal d) = d.d_last_play
 
 let random_child deal =
     match get_playable_cards deal with
@@ -140,6 +145,14 @@ let random_child deal =
         | cards -> let card = List.nth cards (Random.int @@ List.length cards)
                    in deal_after_playing card deal
 
+let successors_of_deal (Deal d as deal) =
+    List.map (fun card -> deal_after_playing card deal) (get_playable_cards deal)
+
+let sorted_successors_of_deal (Deal d as deal) =
+    let successors = List.sort
+                        (fun c1 c2 -> compare (rank_of_card c1) (rank_of_card c2))
+                        (get_playable_cards deal)
+    in List.map (fun card -> deal_after_playing card deal) successors
 
 let print_hand name (Hand h) =
     Printf.printf "%s:  " name;
