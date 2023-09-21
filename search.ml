@@ -59,6 +59,31 @@ let can_side_to_lead_win_a_trick (Deal d as deal) =
             | Some (Card (_, rank1)) as x, Some (Card (_, rank2)) -> if rank1 = rank2 then x else None)
         (List.rev all_suits)
 
+let cards_of_current_side (Deal d as deal) =
+    let p = d.d_to_move in
+    match List.nth d.d_hands p, List.nth d.d_hands ((p+2) land 3) with
+        | Hand h1, Hand h2 -> h1 @ h2
+
+let cards_of_other_side (Deal d as deal) =
+    let p = d.d_to_move in
+    match List.nth d.d_hands ((p+1) land 3), List.nth d.d_hands ((p+3) land 3) with
+        | Hand h1, Hand h2 -> h1 @ h2
+
+let can_side_win_next_trick (Deal d as deal) =
+    let my_cards = get_playable_cards deal and
+        our_cards = cards_of_current_side deal and
+        their_cards = cards_of_other_side deal
+    in
+    List.exists (fun suit ->
+        match highest_card_in_suit suit our_cards,
+              highest_card_in_suit suit their_cards with
+            | None, None -> false
+            | Some _, None -> true
+            | None, Some _ -> false
+            | Some x, Some y -> rank_of_card x >= rank_of_card y)
+        (List.map suit_of_card my_cards)  (* TODO: remove duplicates from this list *)
+
+
 let rec evaluate_deal_beta counter deal depth =
     let is_top = (!counter = 0) in
     incr counter;
@@ -93,28 +118,43 @@ let rec evaluate_deal_beta counter deal depth =
 )
 
 
+let rec count_aces = function
+    | [] -> 0
+    | Card (_, RA) :: xs -> 1 + count_aces xs
+    | _ :: xs -> count_aces xs
+
 (* This doesn't.  :(  *)
-let rec evaluate_deal_windowed_once deal depth middle =
+let rec evaluate_deal_gamma counter deal depth middle =
+    incr counter;
     if depth = 0
-        then (immediate_value_of_deal deal, []) (* (let iv = immediate_value_of_deal deal
-              in if iv > middle then (middle + 1, []) else (middle - 1, [])) *)
+        then (let iv = immediate_value_of_deal deal
+              in if iv > middle then (middle + 1, []) else (middle - 1, []))
         else
-(*
+
     let iv = immediate_value_of_deal deal in
     if is_new_trick deal && iv - (depth / 4) > middle
         then (middle + 1, [])
     else if is_new_trick deal && iv + (depth / 4) < middle
         then (middle - 1, [])
         else
-*)
+
+    if depth = 4 && iv = middle
+        then (if can_side_win_next_trick deal then (middle + 1, []) else (middle - 1, []))
+        else
+
+    if depth = 8 && iv + 2 > middle
+                 && count_aces (get_playable_cards deal) >= 2
+        then (middle + 1, [])
+        else
+
     let successors = successors_of_deal deal and
         best_value = ref (-1000) and
         best_variation = ref [] in
     List.iter
-                (fun succ -> if false && !best_value > middle
+                (fun succ -> if !best_value > middle
                                 then ()
                                 else
-                             let value, variation = evaluate_deal_windowed_once succ (depth - 1)
+                             let value, variation = evaluate_deal_gamma counter succ (depth - 1)
                                                     (if same_sides_in_deals deal succ then middle else -middle)
                              in let adjusted_value = (if same_sides_in_deals deal succ then value else -value)
                              in if adjusted_value > !best_value
@@ -127,12 +167,12 @@ let rec evaluate_deal_windowed_once deal depth middle =
                 successors;
     (!best_value, !best_variation)
 
-let evaluate_deal_windowed deal depth =
+let evaluate_deal_gamma_top counter deal depth =
     let middle = ref 0 and variation = ref [] in
     for d = 1 to depth do
         if d land 3 = 0
-            then let new_middle, new_variation = evaluate_deal_windowed_once deal d !middle
+            then let (new_middle, new_variation) = evaluate_deal_gamma counter deal d !middle
                  in (middle := new_middle; variation := new_variation)
     done;
-    (!middle, !variation)
+    (!middle, !variation), !counter
 
