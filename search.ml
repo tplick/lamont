@@ -200,6 +200,16 @@ let rec evaluate_deal_gamma counter deal depth middle =
         then (if can_side_win_next_trick deal then (middle + 1, []) else (middle - 1, []))
         else
 
+    if depth land 3 = 0 && iv - (depth / 4) = middle - 1
+                        && can_side_win_next_trick deal
+        then (middle + 1, [])
+        else
+
+    if depth land 3 = 0 && iv + (depth / 4) = middle + 1
+                        && not @@ can_side_win_next_trick deal
+        then (middle - 1, [])
+        else
+
     if depth land 3 = 0 && iv + (depth / 4) > middle
                         && max (count_top_tricks_in_both_hands deal)
                                (count_ace_tricks_between_hands deal)  >= depth / 4
