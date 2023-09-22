@@ -121,7 +121,7 @@ let hand_without_card card (Hand h) =
 let rec rotate_to_front list elt =
     match list with
         | [] -> []
-        | x :: xs when x = elt -> list
+        | x :: xs when are_cards_equal x elt -> list
         | x :: xs -> rotate_to_front (xs @ [x]) elt
 
 let rotate_to_back list elt =

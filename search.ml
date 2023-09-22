@@ -28,6 +28,7 @@ let rec evaluate_deal_alpha counter deal depth =
     if is_top then Printf.printf "\n%!";
     List.fold_left max (-1000, []) deal_values, !counter
 
+(*
 let highest_card_in_suit suit cards =
     let cards_in_suit = List.filter (fun card -> suit_of_card card = suit) cards
     in
@@ -36,6 +37,17 @@ let highest_card_in_suit suit cards =
     match sorted_cards_in_suit with
         | x :: xs -> Some x
         | [] -> None
+*)
+
+let highest_card_in_suit suit cards =
+    let rec highest_card_in_suit' suit' cards' acc =
+        match cards', acc with
+            | [], _ -> acc
+            | x :: xs, None when suit_of_card x = suit' -> highest_card_in_suit' suit' xs (Some x)
+            | x :: xs, Some y when suit_of_card x = suit' && rank_of_card x > rank_of_card y
+                    -> highest_card_in_suit' suit' xs (Some x)
+            | x :: xs, _ -> highest_card_in_suit' suit' xs acc
+    in highest_card_in_suit' suit cards None
 
 let rec first_non_null f list =
     match list with
