@@ -61,6 +61,7 @@ let can_side_to_lead_win_a_trick (Deal d as deal) =
     let cards_to_lead = get_playable_cards deal and
         all_cards_in_hands = match d.d_hands with
             | [Hand w; Hand x; Hand y; Hand z] -> w @ x @ y @ z
+            | _ -> raise (Failure "impossible")
     in
     first_non_null
         (fun suit -> match highest_card_in_suit suit cards_to_lead,
@@ -71,12 +72,12 @@ let can_side_to_lead_win_a_trick (Deal d as deal) =
             | Some (Card (_, rank1)) as x, Some (Card (_, rank2)) -> if rank1 = rank2 then x else None)
         (List.rev all_suits)
 
-let cards_of_current_side (Deal d as deal) =
+let cards_of_current_side (Deal d) =
     let p = d.d_to_move in
     match List.nth d.d_hands p, List.nth d.d_hands ((p+2) land 3) with
         | Hand h1, Hand h2 -> h1 @ h2
 
-let cards_of_other_side (Deal d as deal) =
+let cards_of_other_side (Deal d) =
     let p = d.d_to_move in
     match List.nth d.d_hands ((p+1) land 3), List.nth d.d_hands ((p+3) land 3) with
         | Hand h1, Hand h2 -> h1 @ h2
@@ -139,7 +140,7 @@ let rec count_top_tricks = function
     | Card (_, RA) :: xs -> 1 + count_top_tricks xs
     | _ :: xs -> count_top_tricks xs
 
-let get_partners_cards (Deal d as deal) =
+let get_partners_cards (Deal d) =
     match List.nth d.d_hands ((d.d_to_move + 2) land 3) with
         | Hand cards -> cards
 
