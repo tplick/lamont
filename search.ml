@@ -118,12 +118,57 @@ let rec evaluate_deal_beta counter deal depth =
 )
 
 
-let rec count_aces = function
+let rec count_top_tricks = function
     | [] -> 0
-    | Card (_, RA) :: xs -> 1 + count_aces xs
-    | _ :: xs -> count_aces xs
+    | Card (s1, RA) :: Card (s2, RK) :: Card (s3, RQ) :: xs when s1 = s2 && s1 = s3
+            -> 3 + count_top_tricks xs
+    | Card (s1, RA) :: Card (s2, RK) :: xs when s1 = s2
+            -> 2 + count_top_tricks xs
+    | Card (_, RA) :: xs -> 1 + count_top_tricks xs
+    | _ :: xs -> count_top_tricks xs
 
-(* This doesn't.  :(  *)
+let get_partners_cards (Deal d as deal) =
+    match List.nth d.d_hands ((d.d_to_move + 2) land 3) with
+        | Hand cards -> cards
+
+let is_every_suit_in_cards cards =
+    let suits = List.map suit_of_card cards
+    in (List.length @@ List.sort_uniq compare suits) = 4
+
+let count_top_tricks_in_both_hands deal =
+    let my_cards = get_playable_cards deal in
+    let mine = count_top_tricks my_cards and
+        partners = count_top_tricks (get_partners_cards deal)
+    in if partners > mine && is_every_suit_in_cards my_cards
+            then partners
+            else mine
+
+let rec count_aces_in_cards = function
+    | [] -> 0
+    | Card (_, RA) :: xs -> 1 + count_aces_in_cards xs
+    | _ :: xs -> count_aces_in_cards xs
+
+let count_ace_tricks_between_hands deal =
+    let my_cards = get_playable_cards deal and
+        partners_cards = get_partners_cards deal
+    in if is_every_suit_in_cards my_cards && is_every_suit_in_cards partners_cards
+        then count_aces_in_cards my_cards + count_aces_in_cards partners_cards
+        else 0
+
+let sort_deals_by_last_play deals =
+    let comp (Deal d1) (Deal d2) = match d1.d_last_play, d2.d_last_play with
+        | Some x, Some y -> -compare (rank_of_card x) (rank_of_card y)
+        | _, _ -> 0
+    in List.sort comp deals
+
+let rec remove_equals_from_successors succs =
+    match succs with
+        | [] | [_] -> succs
+        | x :: y :: rest ->
+            match get_last_play x, get_last_play y with
+                | Some cx, Some cy when are_cards_adjacent cx cy -> remove_equals_from_successors (y :: rest)
+                | _ -> x :: remove_equals_from_successors (y :: rest)
+
 let rec evaluate_deal_gamma counter deal depth middle =
     incr counter;
     if depth = 0
@@ -142,14 +187,17 @@ let rec evaluate_deal_gamma counter deal depth middle =
         then (if can_side_win_next_trick deal then (middle + 1, []) else (middle - 1, []))
         else
 
-    if depth = 8 && iv + 2 > middle
-                 && count_aces (get_playable_cards deal) >= 2
+    if depth land 3 = 0 && iv + (depth / 4) > middle
+                        && max (count_top_tricks_in_both_hands deal)
+                               (count_ace_tricks_between_hands deal)  >= depth / 4
         then (middle + 1, [])
         else
 
     let successors = successors_of_deal deal and
         best_value = ref (-1000) and
         best_variation = ref [] in
+    let filtered_successors = remove_equals_from_successors successors in
+    let sorted_successors = sort_deals_by_last_play filtered_successors in
     List.iter
                 (fun succ -> if !best_value > middle
                                 then ()
@@ -164,7 +212,7 @@ let rec evaluate_deal_gamma counter deal depth middle =
                                     | Some x -> x :: variation
                                     | None -> variation);
                              ())
-                successors;
+                sorted_successors;
     (!best_value, !best_variation)
 
 let evaluate_deal_gamma_top counter deal depth =
