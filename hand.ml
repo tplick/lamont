@@ -11,13 +11,20 @@ let all_ranks = [R2; R3; R4; R5; R6; R7; R8; R9; R10; RJ; RQ; RK; RA]
 let all_suit_string = "\u{2663}\u{2662}\u{2661}\u{2660}"
 let all_rank_string = "23456789TJQKA"
 
+(*
 let rec are_ranks_adjacent a b = function
     | [] | [_] -> false
     | x :: y :: rest ->
         (x = a && y = b) || (x = b && y = a) || are_ranks_adjacent a b (y :: rest)
+*)
+
+let are_ranks_adjacent a b =
+    match (Obj.magic a : int) - (Obj.magic b : int) with
+        | -1 | 1 -> true
+        | _ -> false
 
 let are_cards_adjacent a b =
-    suit_of_card a = suit_of_card b && are_ranks_adjacent (rank_of_card a) (rank_of_card b) all_ranks
+    suit_of_card a = suit_of_card b && are_ranks_adjacent (rank_of_card a) (rank_of_card b)
 
 
 let rec find_index list elt =
@@ -98,8 +105,18 @@ let get_playable_cards (Deal d as deal) =
 let are_cards_equal (Card (s1, r1)) (Card (s2, r2)) =
     s1 == s2 && r1 == r2
 
+(*
 let hand_without_card card (Hand h) =
     Hand (List.filter (fun card' -> not @@ are_cards_equal card card') h)
+*)
+
+let hand_without_card card (Hand h) =
+    let rec hand_without_card' card' card_list =
+        match card_list with
+            | [] -> []
+            | x :: xs when are_cards_equal x card' -> xs
+            | x :: xs -> x :: hand_without_card' card' xs
+    in Hand (hand_without_card' card h)
 
 let rec rotate_to_front list elt =
     match list with
@@ -140,7 +157,11 @@ let is_new_trick (Deal d) =
 
 let deal_after_playing card (Deal d as deal) =
     let child = Deal {
-        d with d_hands = List.map (fun h -> hand_without_card card h) d.d_hands;
+        d with d_hands = List.mapi (fun idx h ->
+                            if d.d_to_move = idx
+                                then hand_without_card card h
+                                else h)
+                            d.d_hands;
                d_played = card :: (if is_new_trick deal then [] else d.d_played);
                d_to_move = (d.d_to_move + 1) land 3;
                d_turns = d.d_turns + 1;
