@@ -259,11 +259,10 @@ let rec evaluate_deal_gamma counter deal depth middle =
         then (middle + 1, [])
         else
 
-    let successors = successors_of_deal deal and
+    let successors = successors_of_deal_without_equals deal and
         best_value = ref (-1000) and
         best_variation = ref [] in
-    let filtered_successors = remove_equals_from_successors successors in
-    let sorted_successors = sort_deals_by_last_play filtered_successors in
+    let sorted_successors = sort_deals_by_last_play successors in
     List.iter
                 (fun succ -> if !best_value > middle
                                 then ()

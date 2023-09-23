@@ -187,8 +187,19 @@ let random_child deal =
         | cards -> let card = List.nth cards (Random.int @@ List.length cards)
                    in deal_after_playing card deal
 
+let rec remove_equals_from_cards cards =
+    match cards with
+        | [] | [_] -> cards
+        | x :: y :: cards ->
+            if are_cards_adjacent x y
+                then remove_equals_from_cards (y :: cards)
+                else x :: remove_equals_from_cards (y :: cards)
+
 let successors_of_deal (Deal d as deal) =
     List.map (fun card -> deal_after_playing card deal) (get_playable_cards deal)
+
+let successors_of_deal_without_equals (Deal d as deal) =
+    List.map (fun card -> deal_after_playing card deal) (remove_equals_from_cards @@ get_playable_cards deal)
 
 let sorted_successors_of_deal (Deal d as deal) =
     let successors = List.sort
