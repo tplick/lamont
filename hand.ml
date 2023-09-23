@@ -130,19 +130,23 @@ let rotate_to_back list elt =
         | x :: xs -> xs @ [x]
 
 let rotate_deal_to_winner (Deal d as deal) =
+    let played = ref d.d_played in
     match get_lead deal with
-        | Some (Card (lead_suit, lead_rank) as lead) ->
-            let winning_card = ref lead and idx = ref 3 in
+        | Some (Card (lead_suit, lead_rank)) ->
+            let winning_rank = ref lead_rank and idx = ref 3 in
             for j = 0 to 2 do
-                let Card (suit, rank) as play = List.nth d.d_played j
-                in if suit = lead_suit && rank > rank_of_card !winning_card
-                        then (idx := j; winning_card := play)
+                match !played with
+                    | (Card (suit, rank)) :: xs ->
+                       (played := xs;
+                        if suit = lead_suit && rank > !winning_rank
+                            then (idx := j; winning_rank := rank))
+                    | [] -> raise (Failure "impossible")
             done;
             idx := 3 - !idx;
             let winner = (d.d_to_move + !idx) land 3
             and (ew_tricks, ns_tricks) = d.d_tricks
             in Deal {d with d_to_move = winner;
-                            d_played = rotate_to_back d.d_played !winning_card;
+                            d_played = rotate_to_back d.d_played (Card (lead_suit, !winning_rank));
                             d_tricks = (ew_tricks + 1 - (winner land 1),
                                         ns_tricks +     (winner land 1))}
         | None -> raise (Failure "impossible")
@@ -155,13 +159,19 @@ let end_trick (Deal d as deal) =
 let is_new_trick (Deal d) =
     d.d_turns land 3 = 0
 
+let rec hands_after_playing hands (Deal d as deal) card idx =
+    if idx = d.d_to_move
+        then hand_without_card card (List.hd hands) :: List.tl hands
+        else List.hd hands :: hands_after_playing (List.tl hands) deal card (idx + 1)
+
 let deal_after_playing card (Deal d as deal) =
     let child = Deal {
-        d with d_hands = List.mapi (fun idx h ->
+        d with d_hands = hands_after_playing d.d_hands deal card 0
+                         (* List.mapi (fun idx h ->
                             if d.d_to_move = idx
                                 then hand_without_card card h
                                 else h)
-                            d.d_hands;
+                            d.d_hands *);
                d_played = card :: (if is_new_trick deal then [] else d.d_played);
                d_to_move = (d.d_to_move + 1) land 3;
                d_turns = d.d_turns + 1;
