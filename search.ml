@@ -77,6 +77,11 @@ let cards_of_current_side (Deal d) =
     match List.nth d.d_hands p, List.nth d.d_hands ((p+2) land 3) with
         | Hand h1, Hand h2 -> h1 @ h2
 
+let cards_of_next_player (Deal d) =
+    let p = d.d_to_move in
+    match List.nth d.d_hands ((p+1) land 3) with
+        | Hand h1 -> h1
+
 let cards_of_other_side (Deal d) =
     let p = d.d_to_move in
     match List.nth d.d_hands ((p+1) land 3), List.nth d.d_hands ((p+3) land 3) with
@@ -96,6 +101,20 @@ let can_side_win_next_trick (Deal d as deal) =
             | Some x, Some y -> rank_of_card x >= rank_of_card y)
         (List.map suit_of_card my_cards)  (* TODO: remove duplicates from this list *)
 
+let can_2nd_player_win_next_trick (Deal d as deal) =
+    match get_lead deal with
+        | None -> raise (Failure "impossible")
+        | Some (Card (suit, rank_led) as lead)
+    ->
+    let our_cards = cards_of_current_side deal and
+        their_cards = lead :: cards_of_next_player deal
+    in
+    match highest_card_in_suit suit our_cards,
+          highest_card_in_suit suit their_cards with
+            | None, None -> false
+            | Some _, None -> true
+            | None, Some _ -> false
+            | Some x, Some y -> rank_of_card x >= rank_of_card y
 
 let rec evaluate_deal_beta counter deal depth =
     let is_top = (!counter = 0) in
@@ -168,6 +187,20 @@ let count_ace_tricks_between_hands deal =
         then count_aces_in_cards my_cards + count_aces_in_cards partners_cards
         else 0
 
+let cards_in_suit suit cards =
+    List.filter (fun card -> suit_of_card card = suit) cards
+
+let count_top_tricks_across_hands_in_suit deal suit =
+    let my_cards = cards_in_suit suit (get_playable_cards deal) and
+        partners_cards = cards_in_suit suit (get_partners_cards deal) in
+    let top_tricks = count_top_tricks (List.rev @@ List.sort compare (my_cards @ partners_cards))
+    in
+    min top_tricks (min (List.length my_cards) (List.length partners_cards))
+
+let count_top_tricks_across_hands deal =
+    List.fold_left (fun acc suit ->
+            acc + count_top_tricks_across_hands_in_suit deal suit) 0 all_suits
+
 let sort_deals_by_last_play deals =
     let comp (Deal d1) (Deal d2) = match d1.d_last_play, d2.d_last_play with
         | Some x, Some y -> -compare (rank_of_card x) (rank_of_card y)
@@ -181,6 +214,11 @@ let rec remove_equals_from_successors succs =
             match get_last_play x, get_last_play y with
                 | Some cx, Some cy when are_cards_adjacent cx cy -> remove_equals_from_successors (y :: rest)
                 | _ -> x :: remove_equals_from_successors (y :: rest)
+
+let rec maximum : int list -> int = function
+    | [] -> raise (Failure "maximum of empty list")
+    | [x] -> x
+    | x :: xs -> let y = maximum xs in if x >= y then x else y
 
 let rec evaluate_deal_gamma counter deal depth middle =
     incr counter;
@@ -205,6 +243,11 @@ let rec evaluate_deal_gamma counter deal depth middle =
         then (middle + 1, [])
         else
 
+    if depth land 3 = 3 && iv - ((depth + 1) / 4) = middle - 1
+                        && can_2nd_player_win_next_trick deal
+        then (middle + 1, [])
+        else
+
     if depth land 3 = 0 && iv + (depth / 4) = middle + 1
                         && not @@ can_side_win_next_trick deal
         then (middle - 1, [])
@@ -212,7 +255,7 @@ let rec evaluate_deal_gamma counter deal depth middle =
 
     if depth land 3 = 0 && iv + (depth / 4) > middle
                         && max (count_top_tricks_in_both_hands deal)
-                               (count_ace_tricks_between_hands deal)  >= depth / 4
+                               (count_ace_tricks_between_hands deal) >= depth / 4
         then (middle + 1, [])
         else
 
