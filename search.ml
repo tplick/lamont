@@ -277,7 +277,11 @@ let rec evaluate_deal_gamma counter deal depth middle =
                                     | Some x -> x :: variation
                                     | None -> variation);
                              ())
-                sorted_successors;
+                (if depth land 3 = 1
+                    then let (wins, losses) = List.partition (fun succ -> same_sides_in_deals deal succ)
+                                                             (List.rev sorted_successors)
+                         in wins @ losses
+                    else sorted_successors);
     (!best_value, !best_variation)
 
 let evaluate_deal_gamma_top counter deal depth =
