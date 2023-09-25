@@ -92,6 +92,9 @@ let cards_of_other_side (Deal d) =
 let get_packed_hand_to_move (Deal d) =
     List.nth d.d_hands d.d_to_move
 
+let get_partners_packed_hand (Deal d) =
+    List.nth d.d_hands (d.d_to_move lxor 2)
+
 let get_packed_hand_of_current_side (Deal d) =
     match List.nth d.d_hands d.d_to_move,
           List.nth d.d_hands (d.d_to_move lxor 2) with
@@ -195,11 +198,15 @@ let rec count_aces_in_cards = function
     | Card (_, RA) :: xs -> 1 + count_aces_in_cards xs
     | _ :: xs -> count_aces_in_cards xs
 
+let count_aces_in_packed_hand (PackedHand ph) =
+    ((ph lsr 12) land 1) + ((ph lsr 25) land 1) +
+    ((ph lsr 38) land 1) + ((ph lsr 51) land 1)
+
 let count_ace_tricks_between_hands deal =
-    let my_cards = get_playable_cards deal and
-        partners_cards = get_partners_cards deal
-    in if is_every_suit_in_cards my_cards && is_every_suit_in_cards partners_cards
-        then count_aces_in_cards my_cards + count_aces_in_cards partners_cards
+    let my_cards = get_packed_hand_to_move deal and
+        partners_cards = get_partners_packed_hand deal
+    in if is_every_suit_in_packed_hand my_cards && is_every_suit_in_packed_hand partners_cards
+        then count_aces_in_packed_hand (get_packed_hand_of_current_side deal)
         else 0
 
 let cards_in_suit suit cards =
@@ -218,7 +225,7 @@ let count_top_tricks_across_hands deal =
 
 let sort_deals_by_last_play deals =
     let comp (Deal d1) (Deal d2) = match d1.d_last_play, d2.d_last_play with
-        | Some x, Some y -> -compare (rank_of_card x) (rank_of_card y)
+        | Some x, Some y -> (Obj.magic @@ rank_of_card y) - (Obj.magic @@ rank_of_card x)
         | _, _ -> 0
     in List.sort comp deals
 
