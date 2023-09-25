@@ -5,6 +5,9 @@ type card = Card of suit * rank
 
 let suit_of_card (Card (suit, _)) = suit
 let rank_of_card (Card (_, rank)) = rank
+let index_of_card (Card (suit, rank)) =
+    13 * (Obj.magic suit) + (Obj.magic rank)
+
 
 let all_suits = [Club; Diamond; Heart; Spade]
 let all_ranks = [R2; R3; R4; R5; R6; R7; R8; R9; R10; RJ; RQ; RK; RA]
@@ -42,21 +45,52 @@ and string_of_card (Card (suit, rank)) =
     suit_string ^ (if rank = R10 then "10" else String.make 1 rank_char )
 
 
-let new_deck () =
+let new_deck =
     let deck = ref [] and iter x y = List.iter y x in
     iter all_suits (fun suit ->
         iter all_ranks (fun rank ->
             deck := Card (suit, rank) :: !deck));
     List.rev !deck
 
+let new_deck_array = Array.of_list new_deck
+
 let shuffled_deck () =
-    let weighted_deck = List.map (fun card -> (Random.float 1.0, card)) (new_deck ())
+    let weighted_deck = List.map (fun card -> (Random.float 1.0, card)) new_deck
     in List.map (fun (_, card) -> card) @@ List.sort compare weighted_deck
 
 
 type hand = Hand of card list
+type packed_hand = PackedHand of int
+
+let pack_hand (Hand h) =
+    PackedHand
+        (List.fold_left
+            (fun acc card -> acc lor (1 lsl index_of_card card))
+            0
+            h)
+
+let unpack_hand (PackedHand mask0) =
+    let h = ref [] and
+        i = ref 0 and
+        mask = ref mask0
+    in
+    while !i < 52 do
+        if !mask land 127 = 0
+            then (mask := !mask lsr 6;
+                  i := !i + 6)
+        else (if !mask land 1 > 0
+            then h := new_deck_array.(!i) :: !h);
+        mask := !mask lsr 1;
+        incr i
+    done;
+    Hand !h
+
+let pack_hands = List.map pack_hand
+let unpack_hands = List.map unpack_hand
+
+
 type deal = Deal of {
-    d_hands: hand list;
+    d_hands: packed_hand list;
     d_to_move: int;
     d_played: card list;
     d_tricks: int * int;
@@ -74,7 +108,7 @@ and deal_hands' a b c d = function
 let new_deal () =
     let (a, b, c, d) = deal_hands ()
     in Deal {
-        d_hands = [Hand a; Hand b; Hand c; Hand d];
+        d_hands = pack_hands [Hand a; Hand b; Hand c; Hand d];
         d_to_move = 0;
         d_played = [];
         d_tricks = (0, 0);
@@ -92,7 +126,7 @@ and get_lead' = function
 
 
 let get_playable_cards (Deal d as deal) =
-    let (Hand hand) = List.nth d.d_hands d.d_to_move in
+    let (Hand hand) = unpack_hand @@ List.nth d.d_hands d.d_to_move in
     if d.d_turns land 3 = 0
         then hand
         else
@@ -117,6 +151,9 @@ let hand_without_card card (Hand h) =
             | x :: xs when are_cards_equal x card' -> xs
             | x :: xs -> x :: hand_without_card' card' xs
     in Hand (hand_without_card' card h)
+
+let packed_hand_without_card card (PackedHand ph) =
+    PackedHand (ph land (lnot (1 lsl index_of_card card)))
 
 let rec rotate_to_front list elt =
     match list with
@@ -161,7 +198,7 @@ let is_new_trick (Deal d) =
 
 let rec hands_after_playing hands (Deal d as deal) card idx =
     if idx = d.d_to_move
-        then hand_without_card card (List.hd hands) :: List.tl hands
+        then packed_hand_without_card card (List.hd hands) :: List.tl hands
         else List.hd hands :: hands_after_playing (List.tl hands) deal card (idx + 1)
 
 let deal_after_playing card (Deal d as deal) =
@@ -232,7 +269,7 @@ let print_deal (Deal d as deal) =
                                 | None -> ());
                           Printf.printf "\n";
                           incr idx)
-        ["West"; "North"; "East"; "South"] d.d_hands;
+        ["West"; "North"; "East"; "South"] @@ unpack_hands d.d_hands;
     let (ew_tricks, ns_tricks) = d.d_tricks in
     Printf.printf "EW: %d       NS: %d\n" ew_tricks ns_tricks;
     Printf.printf "%!"

@@ -59,7 +59,7 @@ let rec first_non_null f list =
 (* N.B.  This is only valid for notrump as written. *)
 let can_side_to_lead_win_a_trick (Deal d as deal) =
     let cards_to_lead = get_playable_cards deal and
-        all_cards_in_hands = match d.d_hands with
+        all_cards_in_hands = match unpack_hands d.d_hands with
             | [Hand w; Hand x; Hand y; Hand z] -> w @ x @ y @ z
             | _ -> raise (Failure "impossible")
     in
@@ -74,32 +74,43 @@ let can_side_to_lead_win_a_trick (Deal d as deal) =
 
 let cards_of_current_side (Deal d) =
     let p = d.d_to_move in
-    match List.nth d.d_hands p, List.nth d.d_hands ((p+2) land 3) with
+    match unpack_hand @@ List.nth d.d_hands p,
+          unpack_hand @@ List.nth d.d_hands ((p+2) land 3) with
         | Hand h1, Hand h2 -> h1 @ h2
 
 let cards_of_next_player (Deal d) =
     let p = d.d_to_move in
-    match List.nth d.d_hands ((p+1) land 3) with
+    match unpack_hand @@ List.nth d.d_hands ((p+1) land 3) with
         | Hand h1 -> h1
 
 let cards_of_other_side (Deal d) =
     let p = d.d_to_move in
-    match List.nth d.d_hands ((p+1) land 3), List.nth d.d_hands ((p+3) land 3) with
+    match unpack_hand @@ List.nth d.d_hands ((p+1) land 3),
+          unpack_hand @@ List.nth d.d_hands ((p+3) land 3) with
         | Hand h1, Hand h2 -> h1 @ h2
 
+let get_packed_hand_to_move (Deal d) =
+    List.nth d.d_hands d.d_to_move
+
+let get_packed_hand_of_current_side (Deal d) =
+    match List.nth d.d_hands d.d_to_move,
+          List.nth d.d_hands (d.d_to_move lxor 2) with
+        | PackedHand h1, PackedHand h2 -> PackedHand (h1 lor h2)
+
+let get_packed_hand_of_other_side (Deal d) =
+    match List.nth d.d_hands ((d.d_to_move+1) land 3),
+          List.nth d.d_hands ((d.d_to_move+3) land 3) with
+        | PackedHand h1, PackedHand h2 -> PackedHand (h1 lor h2)
+
 let can_side_win_next_trick (Deal d as deal) =
-    let my_cards = get_playable_cards deal and
-        our_cards = cards_of_current_side deal and
-        their_cards = cards_of_other_side deal
+    let (PackedHand my_cards) = get_packed_hand_to_move deal and
+        (PackedHand our_cards) = get_packed_hand_of_current_side deal and
+        (PackedHand their_cards) = get_packed_hand_of_other_side deal
     in
-    List.exists (fun suit ->
-        match highest_card_in_suit suit our_cards,
-              highest_card_in_suit suit their_cards with
-            | None, None -> false
-            | Some _, None -> true
-            | None, Some _ -> false
-            | Some x, Some y -> rank_of_card x >= rank_of_card y)
-        (List.map suit_of_card my_cards)  (* TODO: remove duplicates from this list *)
+    List.exists (fun shift ->
+        ((my_cards lsr shift) land 8191) > 0 &&
+            ((our_cards lsr shift) land 8191 > (their_cards lsr shift) land 8191))
+        [0; 13; 26; 39]
 
 let can_2nd_player_win_next_trick (Deal d as deal) =
     match get_lead deal with
@@ -160,18 +171,22 @@ let rec count_top_tricks = function
     | _ :: xs -> count_top_tricks xs
 
 let get_partners_cards (Deal d) =
-    match List.nth d.d_hands ((d.d_to_move + 2) land 3) with
+    match unpack_hand @@ List.nth d.d_hands ((d.d_to_move + 2) land 3) with
         | Hand cards -> cards
 
 let is_every_suit_in_cards cards =
     let suits = List.map suit_of_card cards
     in (List.length @@ List.sort_uniq compare suits) = 4
 
+let is_every_suit_in_packed_hand (PackedHand ph) =
+    ph land 8191 > 0 && (ph lsr 13) land 8191 > 0 &&
+    (ph lsr 26) land 8191 > 0 && (ph lsr 39) land 8191 > 0
+
 let count_top_tricks_in_both_hands deal =
     let my_cards = get_playable_cards deal in
     let mine = count_top_tricks my_cards and
         partners = count_top_tricks (get_partners_cards deal)
-    in if partners > mine && is_every_suit_in_cards my_cards
+    in if partners > mine && is_every_suit_in_packed_hand (get_packed_hand_to_move deal)
             then partners
             else mine
 
