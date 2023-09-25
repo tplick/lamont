@@ -62,6 +62,8 @@ let shuffled_deck () =
 type hand = Hand of card list
 type packed_hand = PackedHand of int
 
+let cards_in_hand (Hand h) = h
+
 let pack_hand (Hand h) =
     PackedHand
         (List.fold_left
@@ -126,15 +128,15 @@ and get_lead' = function
 
 
 let get_playable_cards (Deal d as deal) =
-    let (Hand hand) = unpack_hand @@ List.nth d.d_hands d.d_to_move in
+    let (PackedHand mask as ph) = List.nth d.d_hands d.d_to_move in
     if d.d_turns land 3 = 0
-        then hand
+        then cards_in_hand @@ unpack_hand ph
         else
     match get_lead deal with
-        | None -> hand
+        | None -> cards_in_hand @@ unpack_hand ph
         | Some (Card (suit, rank)) ->
-            let following = List.filter (fun (Card (suit2, rank)) -> suit2 = suit) hand
-            in match following with [] -> hand | _ -> following
+            let following = mask land (8191 lsl (13 * Obj.magic suit))
+            in cards_in_hand @@ unpack_hand (match following with 0 -> ph | _ -> PackedHand following)
 
 let are_cards_equal (Card (s1, r1)) (Card (s2, r2)) =
     s1 == s2 && r1 == r2
