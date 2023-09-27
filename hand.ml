@@ -227,19 +227,38 @@ let random_child deal =
         | cards -> let card = List.nth cards (Random.int @@ List.length cards)
                    in deal_after_playing card deal
 
-let rec remove_equals_from_cards cards =
+let all_remaining_packed (Deal d as deal) =
+    let in_play =
+        if is_new_trick deal
+            then 0
+            else List.fold_left (fun acc card -> acc lor (1 lsl index_of_card card)) 0 d.d_played
+    in match d.d_hands with
+        | [PackedHand w; PackedHand x; PackedHand y; PackedHand z]
+                -> PackedHand (w lor x lor y lor z lor in_play)
+        | _ -> raise (Failure "impossible")
+
+let are_no_cards_left_between x y deal =
+    let x_mask = (1 lsl (index_of_card x)) - 1 and
+        y_mask = (1 lsl (index_of_card y + 1)) - 1 in
+    let diff_mask = x_mask lxor y_mask and
+       PackedHand remaining = all_remaining_packed deal in
+    diff_mask land remaining = 0
+
+let rec remove_equals_from_cards deal cards =
     match cards with
         | [] | [_] -> cards
-        | x :: y :: cards ->
-            if are_cards_adjacent x y
-                then remove_equals_from_cards (y :: cards)
-                else x :: remove_equals_from_cards (y :: cards)
+        | x :: y :: cards when are_cards_adjacent x y
+              -> remove_equals_from_cards deal (y :: cards)
+        | x :: y :: cards when suit_of_card x = suit_of_card y &&
+                               are_no_cards_left_between x y deal
+              -> remove_equals_from_cards deal (y :: cards)
+        | x :: xs -> x :: remove_equals_from_cards deal xs
 
 let successors_of_deal (Deal d as deal) =
     List.map (fun card -> deal_after_playing card deal) (get_playable_cards deal)
 
 let successors_of_deal_without_equals (Deal d as deal) =
-    List.map (fun card -> deal_after_playing card deal) (remove_equals_from_cards @@ get_playable_cards deal)
+    List.map (fun card -> deal_after_playing card deal) (remove_equals_from_cards deal @@ get_playable_cards deal)
 
 let sorted_successors_of_deal (Deal d as deal) =
     let successors = List.sort

@@ -9,7 +9,7 @@ let analyze_deal deal counter =
         let (value, variation), node_count = evaluate_deal_gamma_top (ref 0) deal depth
         in Printf.printf "gamma depth %d: value %d, nodes %d\n%!" depth value node_count;
            counter := !counter + node_count)
-        [4; 8; 12; 16; 20; 24; 28]
+        [4; 8; 12; 16; 20; 24; 28; 32; 36; 40; 44; 48; 52]
 
 let _ =
     let counter = ref 0 in
