@@ -95,6 +95,12 @@ let get_packed_hand_to_move (Deal d) =
 let get_partners_packed_hand (Deal d) =
     List.nth d.d_hands (d.d_to_move lxor 2)
 
+let get_first_opponents_packed_hand (Deal d) =
+    List.nth d.d_hands (d.d_to_move lxor 1)
+
+let get_second_opponents_packed_hand (Deal d) =
+    List.nth d.d_hands (d.d_to_move lxor 3)
+
 let get_packed_hand_of_current_side (Deal d) =
     match List.nth d.d_hands d.d_to_move,
           List.nth d.d_hands (d.d_to_move lxor 2) with
@@ -209,6 +215,18 @@ let count_ace_tricks_between_hands deal =
         then count_aces_in_packed_hand (get_packed_hand_of_current_side deal)
         else 0
 
+let count_top_tricks_in_packed_hand_to_move deal =
+    let PackedHand mine = get_packed_hand_to_move deal and
+        PackedHand partners = get_partners_packed_hand deal and
+        PackedHand opp1 = get_first_opponents_packed_hand deal and
+        PackedHand opp2 = get_second_opponents_packed_hand deal
+    in List.fold_left (fun acc suit_mask ->
+        if mine land suit_mask > (partners lor opp1 lor opp2) land suit_mask
+            then acc + 1
+            else acc)
+        0
+        all_suit_masks
+
 let cards_in_suit suit cards =
     List.filter (fun card -> suit_of_card card = suit) cards
 
@@ -241,6 +259,72 @@ let rec maximum : int list -> int = function
     | [] -> raise (Failure "maximum of empty list")
     | [x] -> x
     | x :: xs -> let y = maximum xs in if x >= y then x else y
+
+let without_lowest_bit mask =
+    mask land (mask - 1)
+
+let without_highest_bit mask =
+    if mask = 0
+        then 0
+        else
+    let bit = ref 0 in
+    for i = 0 to 51 do
+        if mask land (1 lsl i) > 0
+            then bit := i
+    done;
+    mask lxor (1 lsl !bit)
+
+let rec count_iter_tricks_in_suit mine partner opp1 opp2 =
+    if mine = 0 || partner = 0
+        then 0
+        else
+    if mine > partner lor opp1 lor opp2
+        then 1 + count_iter_tricks_in_suit (without_highest_bit mine)
+                                           (without_lowest_bit partner)
+                                           (without_lowest_bit opp1)
+                                           (without_lowest_bit opp2)
+        else
+    if partner > mine lor opp1 lor opp2
+        then 1 + count_iter_tricks_in_suit (without_highest_bit partner)
+                                           (without_lowest_bit mine)
+                                           (without_lowest_bit opp1)
+                                           (without_lowest_bit opp2)
+        else
+    0
+
+let count_iter_tricks deal =
+    let PackedHand mine = get_packed_hand_to_move deal and
+        PackedHand partners = get_partners_packed_hand deal and
+        PackedHand opp1 = get_first_opponents_packed_hand deal and
+        PackedHand opp2 = get_second_opponents_packed_hand deal
+    in List.fold_left (fun acc suit_mask ->
+        acc + count_iter_tricks_in_suit (mine land suit_mask)
+                                        (partners land suit_mask)
+                                        (opp1 land suit_mask)
+                                        (opp2 land suit_mask))
+        0
+        all_suit_masks
+
+let count_iter_tricks_as_2nd_hand deal =
+    match get_lead deal with
+        | None -> raise (Failure "impossible")
+        | Some lead ->
+    let PackedHand mine = get_packed_hand_to_move deal and
+        PackedHand partners = get_partners_packed_hand deal and
+        PackedHand opp1 = get_first_opponents_packed_hand deal and
+        PackedHand opp2 = get_second_opponents_packed_hand deal and
+        lead_mask = 1 lsl index_of_card lead and
+        lead_suit_mask = List.nth all_suit_masks (Obj.magic @@ suit_of_card lead) in
+    if mine land lead_suit_mask > 0 && partners land lead_suit_mask > 0 &&
+                (mine lor partners) land lead_suit_mask > (opp1 lor opp2 lor lead_mask) land lead_suit_mask
+        then List.fold_left (fun acc suit_mask ->
+            acc + count_iter_tricks_in_suit (mine land suit_mask)
+                                            (partners land suit_mask)
+                                            ((opp1 lor lead_mask) land suit_mask)
+                                            ((opp2 lor lead_mask) land suit_mask))
+            0
+            all_suit_masks
+        else 0
 
 let rec evaluate_deal_gamma counter deal depth middle =
     incr counter;
@@ -278,6 +362,11 @@ let rec evaluate_deal_gamma counter deal depth middle =
     if depth land 3 = 0 && iv + (depth / 4) > middle
                         && max (count_top_tricks_in_both_hands deal)
                                (count_ace_tricks_between_hands deal) >= depth / 4
+        then (middle + 1, [])
+        else
+
+    if depth land 3 = 0 && iv + (depth / 4) > middle
+                        && count_iter_tricks deal >= depth / 4
         then (middle + 1, [])
         else
 

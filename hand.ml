@@ -13,6 +13,7 @@ let all_suits = [Club; Diamond; Heart; Spade]
 let all_ranks = [R2; R3; R4; R5; R6; R7; R8; R9; R10; RJ; RQ; RK; RA]
 let all_suit_string = "\u{2663}\u{2662}\u{2661}\u{2660}"
 let all_rank_string = "23456789TJQKA"
+let all_suit_masks = [8191; 8191 lsl 13; 8191 lsl 26; 8191 lsl 39]
 
 (*
 let rec are_ranks_adjacent a b = function
