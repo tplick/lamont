@@ -13,7 +13,8 @@ let analyze_deal deal counter =
 
 let _ =
     let counter = ref 0 in
-    for i = 1 to 20 do
+    (* for i = 1 to 20 do *)
+    for i = 1 to 1 do
         Printf.printf "#%d\n" i;
         let d = new_deal ()
         in analyze_deal d counter;
