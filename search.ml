@@ -378,7 +378,18 @@ let get_suit_led deal =
         | Some (Card (suit, _)) -> Some suit
         | None -> None
 
-let rec evaluate_deal_gamma topdepth counter deal depth middle =
+let deal_for_hash (Deal d as deal) =
+    Deal {d with d_played = []; d_last_play = None}
+
+let store_value_in_tt tt deal value =
+   (if Hashtbl.length tt >= 10000
+        then Hashtbl.clear tt);
+    Hashtbl.replace tt (deal_for_hash deal) value
+
+let look_up_value_in_tt tt deal =
+    Hashtbl.find_opt tt (deal_for_hash deal)
+
+let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
     incr counter;
     if depth = 0
         then (let iv = immediate_value_of_deal deal
@@ -391,6 +402,12 @@ let rec evaluate_deal_gamma topdepth counter deal depth middle =
     else if is_new_trick deal && iv + (depth / 4) < middle
         then (middle - 1, [])
         else
+
+    match (if depth land 3 = 0
+                then look_up_value_in_tt (List.hd tts) deal
+                else None) with
+        | Some x -> x
+        | None ->
 
     if depth = 4 && iv = middle
         then (if can_side_win_next_trick deal then (middle + 1, []) else (middle - 1, []))
@@ -442,7 +459,7 @@ let rec evaluate_deal_gamma topdepth counter deal depth middle =
                              if !best_value > middle
                                 then (if depth = topdepth then Printf.printf "X%!")
                                 else (if depth = topdepth then Printf.printf ".%!";
-                             let value, variation = evaluate_deal_gamma topdepth counter succ (depth - 1)
+                             let value, variation = evaluate_deal_gamma topdepth counter (List.tl tts) succ (depth - 1)
                                                     (if same_sides_in_deals deal succ then middle else -middle)
                              in let adjusted_value = (if same_sides_in_deals deal succ then value else -value)
                              in if adjusted_value > !best_value
@@ -464,14 +481,26 @@ let rec evaluate_deal_gamma topdepth counter deal depth middle =
     (match !best_variation with
         | x :: _ -> Hashtbl.replace recommendation_table (get_packed_hand_to_move deal, get_suit_led deal) x
         | [] -> ());
-    (!best_value, !best_variation)
+
+    let return_value = (!best_value, !best_variation)
+    in (if depth land 3 = 0 then store_value_in_tt (List.hd tts) deal return_value);
+    return_value
+
+let make_trans_table_tower () =
+    let tower = ref [] in
+    for i = 0 to 52 do
+        tower := (Hashtbl.create 10000) :: !tower
+    done;
+    !tower
 
 let evaluate_deal_gamma_top counter deal depth =
     let middle = ref 0 and variation = ref [] in
     for d = 1 to depth do
         if d land 3 = 0
-            then let (new_middle, new_variation) = evaluate_deal_gamma depth counter deal d !middle
-                 in (middle := new_middle; variation := new_variation)
+            then let (new_middle, new_variation) =
+                        evaluate_deal_gamma d counter (make_trans_table_tower ()) deal d !middle
+                 in (middle := new_middle; variation := new_variation;
+                     Printf.printf "gamma depth %d: value %d, cumul nodes %d\n%!" d new_middle !counter)
     done;
     (!middle, !variation), !counter
 
