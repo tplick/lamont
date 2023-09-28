@@ -368,6 +368,16 @@ let move_successor_to_front card succs =
     let (a, b) = List.partition (fun succ -> get_last_play succ = Some card) succs
     in a @ b
 
+let get_card_led deal =
+    if is_new_trick deal
+        then None
+        else get_lead deal
+
+let get_suit_led deal =
+    match get_card_led deal with
+        | Some (Card (suit, _)) -> Some suit
+        | None -> None
+
 let rec evaluate_deal_gamma topdepth counter deal depth middle =
     incr counter;
     if depth = 0
@@ -443,7 +453,7 @@ let rec evaluate_deal_gamma topdepth counter deal depth middle =
                                     | None -> variation);
                              ()))
                 (match depth land 3 with
-                    | 0 | 2 | 3 -> (match Hashtbl.find_opt recommendation_table (get_packed_hand_to_move deal) with
+                    | 0 | 2 | 3 -> (match Hashtbl.find_opt recommendation_table (get_packed_hand_to_move deal, get_suit_led deal) with
                              | Some card -> move_successor_to_front card sorted_successors
                              | None -> sorted_successors)
                     | 1 -> let (wins, losses) = List.partition (fun succ -> same_sides_in_deals deal succ)
@@ -452,7 +462,7 @@ let rec evaluate_deal_gamma topdepth counter deal depth middle =
                     | _ -> sorted_successors);
     (if depth = topdepth then Printf.printf "\n%!");
     (match !best_variation with
-        | x :: _ -> Hashtbl.replace recommendation_table (get_packed_hand_to_move deal) x
+        | x :: _ -> Hashtbl.replace recommendation_table (get_packed_hand_to_move deal, get_suit_led deal) x
         | [] -> ());
     (!best_value, !best_variation)
 
