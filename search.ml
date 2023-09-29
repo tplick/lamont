@@ -379,7 +379,8 @@ let get_suit_led deal =
         | None -> None
 
 let deal_for_hash (Deal d as deal) =
-    Deal {d with d_played = []; d_last_play = None}
+    (* Deal {d with d_played = []; d_last_play = None} *)
+    (all_remaining_packed deal, d.d_to_move, d.d_tricks)
 
 let store_value_in_tt tt deal value =
    (if Hashtbl.length tt >= 10000
@@ -494,6 +495,7 @@ let make_trans_table_tower () =
     !tower
 
 let evaluate_deal_gamma_top counter deal depth =
+    Hashtbl.clear recommendation_table;
     let middle = ref 0 and variation = ref [] in
     for d = 1 to depth do
         if d land 3 = 0
