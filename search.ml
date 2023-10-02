@@ -420,10 +420,15 @@ let make_deal_canonical (Deal d as deal) =
     let canon_hands = List.map (fun (PackedHand hand) -> PackedHand (canonicalize_hand hand pop_mask)) hands in
     Deal {d with d_hands = canon_hands}
 
-let get_hands_from_deal (Deal d) = d.d_hands
+let get_hands_from_deal (Deal d) = (* d.d_hands *)
+    match d.d_hands with
+        | [PackedHand a; PackedHand b; PackedHand c; PackedHand d] -> (a, b, c, d)
+        | _ -> raise (Failure "impossible")
 
 let deal_for_hash (Deal d as deal) =
-    (get_hands_from_deal @@ make_deal_canonical deal, d.d_to_move, d.d_tricks)
+    let (ew, ns) = d.d_tricks in
+    match (get_hands_from_deal @@ make_deal_canonical deal) with
+        | (w, x, y, z) -> (w, x, y, z, d.d_to_move lsl 8 + ew lsl 4 + ns)
 
 let store_value_in_tt tt deal value =
    (if Hashtbl.length tt >= 10000
