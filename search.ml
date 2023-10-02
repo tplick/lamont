@@ -430,6 +430,34 @@ let store_value_in_tt tt deal value =
 let look_up_value_in_tt tt deal =
     Hashtbl.find_opt tt (deal_for_hash deal)
 
+let rec get_long_suit_tricks_in_suit mine partner opp1 opp2 =
+    if mine > partner && mine > opp1 lor opp2
+        then 1 + get_long_suit_tricks_in_suit (without_highest_bit mine)
+                                              (without_lowest_bit partner)
+                                              (without_lowest_bit opp1)
+                                              (without_lowest_bit opp2)
+        else
+    if mine > 0 && partner > mine && partner > opp1 lor opp2
+        then 1 + get_long_suit_tricks_in_suit (without_highest_bit partner)
+                                              (without_lowest_bit mine)
+                                              (without_lowest_bit opp1)
+                                              (without_lowest_bit opp2)
+        else
+    0
+
+let count_long_suit_tricks_in_hand deal =
+    let PackedHand mine = get_packed_hand_to_move deal and
+        PackedHand partners = get_partners_packed_hand deal and
+        PackedHand opp1 = get_first_opponents_packed_hand deal and
+        PackedHand opp2 = get_second_opponents_packed_hand deal in
+    List.fold_left (fun acc suit_mask ->
+        max acc @@ get_long_suit_tricks_in_suit (mine land suit_mask)
+                                                (partners land suit_mask)
+                                                (opp1 land suit_mask)
+                                                (opp2 land suit_mask))
+        0
+        all_suit_masks
+
 let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
     incr counter;
     if depth = 0
@@ -488,6 +516,11 @@ let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
 
     if depth land 3 = 0 && can_return_early iv (depth / 4)
                           (count_top_tricks_in_hand deal) middle
+        then (middle + 1, [])
+        else
+
+    if depth land 3 = 0 && can_return_early iv (depth / 4)
+                          (count_long_suit_tricks_in_hand deal) middle
         then (middle + 1, [])
         else
 
