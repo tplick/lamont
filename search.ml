@@ -553,7 +553,7 @@ let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
                              ()))
                 (match depth land 3 with
                     | 0 | 2 | 3 -> (match Hashtbl.find_opt recommendation_table (get_packed_hand_to_move deal, get_lead deal) with
-                             | Some card -> move_successor_to_front card sorted_successors
+                             | Some card -> move_successor_to_front card @@ List.rev sorted_successors
                              | None -> List.rev sorted_successors)
                     | 1 -> let (wins, losses) = List.partition (fun succ -> same_sides_in_deals deal succ)
                                                                (List.rev sorted_successors)
