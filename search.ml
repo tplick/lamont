@@ -552,7 +552,7 @@ let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
                                     | None -> variation);
                              ()))
                 (match depth land 3 with
-                    | 0 | 2 | 3 -> (match Hashtbl.find_opt recommendation_table (get_packed_hand_to_move deal, get_suit_led deal) with
+                    | 0 | 2 | 3 -> (match Hashtbl.find_opt recommendation_table (get_packed_hand_to_move deal, get_lead deal) with
                              | Some card -> move_successor_to_front card sorted_successors
                              | None -> sorted_successors)
                     | 1 -> let (wins, losses) = List.partition (fun succ -> same_sides_in_deals deal succ)
@@ -561,7 +561,7 @@ let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
                     | _ -> sorted_successors);
     (if depth = topdepth then Printf.printf "\n%!");
     (match !best_variation with
-        | x :: _ -> Hashtbl.replace recommendation_table (get_packed_hand_to_move deal, get_suit_led deal) x
+        | x :: _ -> Hashtbl.replace recommendation_table (get_packed_hand_to_move deal, get_lead deal) x
         | [] -> ());
 
     let return_value = (!best_value, !best_variation)
@@ -583,7 +583,7 @@ let evaluate_deal_gamma_top counter deal depth =
             then let (new_middle, new_variation) =
                         evaluate_deal_gamma d counter (make_trans_table_tower ()) deal d !middle
                  in (middle := new_middle; variation := new_variation;
-                     Printf.printf "gamma depth %d: value %d, cumul nodes %d\n%!" d new_middle !counter)
+                     Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (Hashtbl.length recommendation_table))
     done;
     (!middle, !variation), !counter
 
