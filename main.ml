@@ -8,7 +8,7 @@ let analyze_deal deal counter =
            counter := !counter + node_count))
         [4; 8];
     let (value, variation), node_count = evaluate_deal_gamma_top (ref 0) deal 52
-    in Printf.printf "gamma depth %d: value %d, nodes %d\n%!" 52 value node_count;
+    in (* Printf.printf "gamma depth %d: value %d, nodes %d\n%!" 52 value node_count; *)
        counter := !counter + node_count
 
 let _ =

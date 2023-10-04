@@ -268,7 +268,8 @@ let sorted_successors_of_deal (Deal d as deal) =
 
 let print_hand name (Hand h) =
     Printf.printf "%s:  " name;
-    List.iter (fun card -> Printf.printf "%s " (string_of_card card)) h
+    List.iter (fun card -> if suit_of_card card <> Diamond then Printf.printf "%s " (string_of_card card)) h;
+    List.iter (fun card -> if suit_of_card card =  Diamond then Printf.printf "%s " (string_of_card card)) h
 
 let current_card_played_by (Deal d) player =
     let cards = ref d.d_played and player_it = ref @@ (d.d_to_move - 1) land 3
