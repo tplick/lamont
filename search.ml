@@ -466,6 +466,18 @@ let count_long_suit_tricks_in_hand deal =
         0
         all_suit_masks
 
+let get_deep_card (Deal d) =
+    let rec get_last_card = function
+        | [] -> None
+        | [x] -> Some x
+        | x :: xs -> get_last_card xs
+    in get_last_card d.d_played
+
+let get_top_card (Deal d) =
+    match d.d_played with
+        | x :: xs -> Some x
+        | [] -> None
+
 let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
     incr counter;
     if depth = 0
@@ -552,7 +564,7 @@ let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
                                     | None -> variation);
                              ()))
                 (match depth land 3 with
-                    | 0 | 2 | 3 -> (match Hashtbl.find_opt recommendation_table (get_packed_hand_to_move deal, get_lead deal) with
+                    | 0 | 2 | 3 -> (match Hashtbl.find_opt recommendation_table (get_packed_hand_to_move deal, get_top_card deal, get_suit_led deal) with
                              | Some card -> move_successor_to_front card @@ List.rev sorted_successors
                              | None -> List.rev sorted_successors)
                     | 1 -> let (wins, losses) = List.partition (fun succ -> same_sides_in_deals deal succ)
@@ -561,7 +573,7 @@ let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
                     | _ -> sorted_successors);
     (if depth = topdepth && topdepth >= 28 then Printf.printf "\n%!");
     (match !best_variation with
-        | x :: _ -> Hashtbl.replace recommendation_table (get_packed_hand_to_move deal, get_lead deal) x
+        | x :: _ -> Hashtbl.replace recommendation_table (get_packed_hand_to_move deal, get_top_card deal, get_suit_led deal) x
         | [] -> ());
 
     let return_value = (!best_value, !best_variation)
