@@ -566,11 +566,9 @@ let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
         then (middle + 1, [])
         else
 
-    let successors = successors_of_deal_without_equals deal and
-        best_value = ref (-1000) and
+    let best_value = ref (-1000) and
         best_variation = ref [] in
-    let sorted_successors = sort_deals_by_last_play successors in
-    List.iter
+    let iter_body =
                 (fun succ ->
                              if !best_value > middle
                                 then (if depth = topdepth && topdepth >= 28 then Printf.printf "X%!")
@@ -584,18 +582,23 @@ let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
                                  match get_last_play succ with
                                     | Some x -> x :: variation
                                     | None -> variation);
-                             ()))
-                (match depth land 3 with
-                    | 0 | 2 | 3 -> (match Hashtbl.find_opt recommendation_table (get_packed_hand_to_move deal, (if is_new_trick deal then None else get_top_card deal), get_suit_led deal) with
-                             | Some card -> move_successor_to_front card @@ List.rev sorted_successors
-                             | None -> List.rev sorted_successors)
+                             ())) and
+        recommendation = (if depth land 3 = 1 then None else Hashtbl.find_opt recommendation_table (get_packed_hand_to_move deal, (if is_new_trick deal then None else get_top_card deal), get_suit_led deal)) in
+            (match recommendation with
+                | Some card -> iter_body @@ deal_after_playing card deal
+                | None -> ());
+            (if !best_value < middle || depth = topdepth
+                then List.iter (fun succ -> if get_last_play succ <> recommendation then iter_body succ)
+                (let sorted_successors = sort_deals_by_last_play @@ successors_of_deal_without_equals deal in
+                 match depth land 3 with
                     | 1 -> let (wins, losses) = List.partition (fun succ -> same_sides_in_deals deal succ)
                                                                (List.rev sorted_successors)
                            in wins @ losses
-                    | _ -> sorted_successors);
+                    | _ -> List.rev sorted_successors));
     (if depth = topdepth && topdepth >= 28 then Printf.printf "\n%!");
-    (match !best_variation with
-        | x :: _ -> Hashtbl.replace recommendation_table (get_packed_hand_to_move deal, (if is_new_trick deal then None else get_top_card deal), get_suit_led deal) x
+    (if depth land 3 <> 1 then
+     match !best_variation with
+        | x :: _ -> if Some x <> recommendation then Hashtbl.replace recommendation_table (get_packed_hand_to_move deal, (if is_new_trick deal then None else get_top_card deal), get_suit_led deal) x
         | [] -> ());
 
     let return_value = (!best_value, !best_variation)
