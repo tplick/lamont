@@ -378,13 +378,35 @@ let get_suit_led deal =
         | Some (Card (suit, _)) -> Some suit
         | None -> None
 
-let make_canonical_mask pop_suit_mask hand_suit_mask =
+let bitcount_array =
+    let array = Array.make 128 0 in
+    array.(0) <- 0;
+    for i = 1 to 127 do
+        array.(i) <- array.(i/2) + (i land 1)
+    done;
+    array
+
+let make_canonical_mask_from_scratch pop_suit_mask hand_suit_mask =
     let mask = ref 0 in
     for bit = 12 downto 0 do
         if pop_suit_mask land (1 lsl bit) > 0
             then (mask := 2 * !mask + (if hand_suit_mask land (1 lsl bit) > 0 then 1 else 0))
     done;
     !mask
+
+let canonical_array =
+    let array = Array.make (128 * 128) 0 in
+    for i = 0 to 127 do
+        for j = 0 to 127 do
+            array.(i * 128 + j) <- make_canonical_mask_from_scratch i j
+        done
+    done;
+    array
+
+let make_canonical_mask pop_suit_mask hand_suit_mask =
+    let low = canonical_array.((pop_suit_mask land 127) * 128 + (hand_suit_mask land 127)) and
+        high = canonical_array.((pop_suit_mask lsr 7) * 128 + (hand_suit_mask lsr 7))
+    in low + (high lsl bitcount_array.(pop_suit_mask land 127))
 
 (*
 let canonical_table =
