@@ -500,6 +500,34 @@ let get_top_card (Deal d) =
         | x :: xs -> Some x
         | [] -> None
 
+let extract x = function
+    | Some y -> y
+    | None -> x
+
+let pull_suit_to_front card_option succs =
+    match card_option with
+        | None -> succs
+        | Some x ->
+            let a, b = List.partition (fun succ -> suit_of_card (extract x (get_last_play succ)) = suit_of_card x)
+                                      succs
+            in a @ b
+
+(* approximate for now *)
+let is_top_card_winning (Deal d) =
+    match d.d_played with
+        | top :: rest ->
+            List.for_all (fun card -> suit_of_card card = suit_of_card top && rank_of_card card < rank_of_card top) rest
+
+let does_card_beat a b =
+    suit_of_card a = suit_of_card b && rank_of_card a > rank_of_card b
+
+let is_top_card_winning_true (Deal d as deal) =
+    let (Some lead) = get_lead deal in
+    match d.d_played with
+        | top :: rest ->
+            does_card_beat top lead &&
+            List.for_all (fun card -> card = lead || suit_of_card card <> suit_of_card lead || does_card_beat top card) rest
+
 let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
     incr counter;
     if depth = 0
@@ -593,6 +621,8 @@ let rec evaluate_deal_gamma topdepth counter tts deal depth middle =
                  match depth land 3 with
                     | 1 -> let (wins, losses) = List.partition (fun succ -> same_sides_in_deals deal succ)
                                                                (List.rev sorted_successors)
+                           in wins @ losses
+                    | 2 | 3 -> let (wins, losses) = List.partition is_top_card_winning @@ List.rev sorted_successors
                            in wins @ losses
                     | _ -> List.rev sorted_successors));
     (if depth = topdepth && topdepth >= 28 then Printf.printf "\n%!");
