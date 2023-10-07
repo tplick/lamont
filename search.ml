@@ -264,11 +264,20 @@ let without_lowest_bit mask =
     mask land (mask - 1)
 
 let without_highest_bit mask =
-    if mask = 0
+    if without_lowest_bit mask = 0
         then 0
         else
-    let bit = ref 0 in
-    for i = 0 to 51 do
+    let bit = ref 0 and
+    lower_bound =
+        if mask land ((1 lsl 26) - 1) > 0
+            then 0
+            else 26   and
+    upper_bound =
+        if mask land ((1 lsl 52) - (1 lsl 26)) > 0
+            then 51
+            else 25
+    in
+    for i = lower_bound to upper_bound do
         if mask land (1 lsl i) > 0
             then bit := i
     done;
@@ -350,14 +359,12 @@ let count_top_tricks_in_hand deal =
                 count_bits (opp2 land suit_mask) <= 1
             then acc + count_bits (mine land suit_mask)
             else
-        if without_highest_bit (without_highest_bit (mine land suit_mask)) > (partners lor opp1 lor opp2) land suit_mask
+        if mine land suit_mask > (partners lor opp1 lor opp2) land suit_mask then
+            if without_highest_bit (mine land suit_mask) > (partners lor opp1 lor opp2) land suit_mask then
+                if without_highest_bit (without_highest_bit (mine land suit_mask)) > (partners lor opp1 lor opp2) land suit_mask
             then acc + 3
-            else
-        if without_highest_bit (mine land suit_mask) > (partners lor opp1 lor opp2) land suit_mask
-            then acc + 2
-            else
-        if mine land suit_mask > (partners lor opp1 lor opp2) land suit_mask
-            then acc + 1
+            else acc + 2
+            else acc + 1
             else acc + 0)
         0
         all_suit_masks
