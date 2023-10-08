@@ -524,16 +524,20 @@ let is_top_card_winning (Deal d) =
     match d.d_played with
         | top :: rest ->
             List.for_all (fun card -> suit_of_card card = suit_of_card top && rank_of_card card < rank_of_card top) rest
+        | [] -> false
 
 let does_card_beat a b =
     suit_of_card a = suit_of_card b && rank_of_card a > rank_of_card b
 
 let is_top_card_winning_true (Deal d as deal) =
-    let (Some lead) = get_lead deal in
+    match get_lead deal with
+        | None -> false
+        | Some lead ->
     match d.d_played with
         | top :: rest ->
             does_card_beat top lead &&
             List.for_all (fun card -> card = lead || suit_of_card card <> suit_of_card lead || does_card_beat top card) rest
+        | [] -> false
 
 let get_restricted_packed_hand_to_move deal =
     let PackedHand ph = get_packed_hand_to_move deal
@@ -626,7 +630,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                                     | Some x -> x :: variation
                                     | None -> variation);
                              ())) and
-        recommendation = (if depth land 3 = 1 then None else Hashtbl.find_opt recommendation_table (get_restricted_packed_hand_to_move deal, (if is_new_trick deal then None else get_top_card deal), get_suit_led deal)) in
+        recommendation = (if depth land 3 = 1 then None else Hashtbl.find_opt recommendation_table (get_restricted_packed_hand_to_move deal, (if is_new_trick deal then None else get_top_card deal), get_suit_led deal, is_top_card_winning_true deal)) in
             (match recommendation with
                 | Some card -> iter_body @@ deal_after_playing card deal
                 | None -> ());
@@ -643,7 +647,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     (if depth = topdepth && topdepth >= 28 then Printf.printf "\n%!");
     (if depth land 3 <> 1 then
      match !best_variation with
-        | x :: _ -> if Some x <> recommendation then Hashtbl.replace recommendation_table (get_restricted_packed_hand_to_move deal, (if is_new_trick deal then None else get_top_card deal), get_suit_led deal) x
+        | x :: _ -> if Some x <> recommendation then Hashtbl.replace recommendation_table (get_restricted_packed_hand_to_move deal, (if is_new_trick deal then None else get_top_card deal), get_suit_led deal, is_top_card_winning_true deal) x
         | [] -> ());
 
     let return_value = (!best_value, !best_variation)
