@@ -60,8 +60,8 @@ let shuffled_deck () =
     in List.map (fun (_, card) -> card) @@ List.sort compare weighted_deck
 
 
-type hand = Hand of card list
-type packed_hand = PackedHand of int
+type hand = Hand of card list [@@unboxed]
+type packed_hand = PackedHand of int [@@unboxed]
 
 let cards_in_hand (Hand h) = h
 
