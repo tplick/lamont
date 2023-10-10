@@ -433,15 +433,16 @@ let canonical_table =
 *)
 
 let canonicalize_hand hand pop_mask =
-    let masks =
-        List.map (fun shift ->
-            let hand_suit_mask = (hand lsr shift) land 8191 and
-                pop_suit_mask = (pop_mask lsr shift) land 8191 in
-            (* let canon_suit_mask = Hashtbl.find canonical_table (pop_suit_mask, hand_suit_mask) in *)
+    let make_mask hand' pop_mask' shift =
+        (
+            let hand_suit_mask = (hand' lsr shift) land 8191 and
+                pop_suit_mask = (pop_mask' lsr shift) land 8191 in
             let canon_suit_mask = make_canonical_mask pop_suit_mask hand_suit_mask in
             canon_suit_mask lsl shift)
-            [0; 13; 26; 39]
-    in List.fold_left (lor) 0 masks
+    in make_mask hand pop_mask 0 lor
+       make_mask hand pop_mask 13 lor
+       make_mask hand pop_mask 26 lor
+       make_mask hand pop_mask 39
 
 let make_deal_canonical (Deal d as deal) =
     let hands = d.d_hands and
