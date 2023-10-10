@@ -664,13 +664,15 @@ let make_trans_table_tower () =
 
 let evaluate_deal_gamma_top counter deal depth =
     Hashtbl.clear recommendation_table;
-    let middle = ref 0 and variation = ref [] in
+    let middle = ref 0 and variation = ref [] and
+        tower = make_trans_table_tower () in
     for d = 1 to depth do
         if d land 3 = 0
-            then let (new_middle, new_variation) =
-                        evaluate_deal_gamma d counter (make_trans_table_tower ()) deal d !middle
+            then (List.iter Hashtbl.clear tower;
+                 let (new_middle, new_variation) =
+                        evaluate_deal_gamma d counter tower deal d !middle
                  in (middle := new_middle; variation := new_variation;
-                     Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (Hashtbl.length recommendation_table))
+                     Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (Hashtbl.length recommendation_table)))
     done;
     (!middle, !variation), !counter
 

@@ -158,14 +158,14 @@ let hand_without_card card (Hand h) =
 let packed_hand_without_card card (PackedHand ph) =
     PackedHand (ph land (lnot (1 lsl index_of_card card)))
 
-let rec rotate_to_front list elt =
+let rec rotate_to_front list elt acc =
     match list with
         | [] -> []
-        | x :: xs when are_cards_equal x elt -> list
-        | x :: xs -> rotate_to_front (xs @ [x]) elt
+        | x :: xs when are_cards_equal x elt -> list @ acc
+        | x :: xs -> rotate_to_front xs elt (x :: acc)
 
 let rotate_to_back list elt =
-    match rotate_to_front list elt with
+    match rotate_to_front list elt [] with
         | [] -> []
         | x :: xs -> xs @ [x]
 
