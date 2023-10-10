@@ -2,7 +2,7 @@
 let analyze_deal deal counter =
     print_deal deal;
     List.iter (fun depth ->
-      (if depth <= 8 then
+      (if depth <= 0 then
         let (value, variation), node_count = evaluate_deal_alpha (ref 0) deal depth
         in Printf.printf "alpha depth %d: value %d, nodes %d\n%!" depth value node_count;
            counter := !counter + node_count))

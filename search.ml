@@ -619,8 +619,8 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     let iter_body =
                 (fun succ ->
                              if !best_value > middle
-                                then (if depth = topdepth && topdepth >= 28 then Printf.printf "X%!")
-                                else (if depth = topdepth && topdepth >= 28 then Printf.printf ".%!";
+                                then (if depth = topdepth && topdepth >= 36 then Printf.printf "X%!")
+                                else (if depth = topdepth && topdepth >= 36 then Printf.printf ".%!";
                              let value, variation = evaluate_deal_gamma topdepth counter (List.tl tts) succ (depth - 1)
                                                     (if same_sides_in_deals deal succ then middle else -middle)
                              in let adjusted_value = (if same_sides_in_deals deal succ then value else -value)
@@ -645,7 +645,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                     | 2 | 3 -> let (wins, losses) = List.partition is_top_card_winning @@ List.rev sorted_successors
                            in wins @ losses
                     | _ -> List.rev sorted_successors));
-    (if depth = topdepth && topdepth >= 28 then Printf.printf "\n%!");
+    (if depth = topdepth && topdepth >= 36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
         | x :: _ -> if Some x <> recommendation then Hashtbl.replace recommendation_table (get_restricted_packed_hand_to_move deal, (if is_new_trick deal then None else get_top_card deal), get_suit_led deal, is_top_card_winning_true deal) x
