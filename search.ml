@@ -630,7 +630,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                                     | Some x -> x :: variation
                                     | None -> variation);
                              ())) and
-        recommendation = (if depth land 3 = 1 then None else Hashtbl.find_opt recommendation_table (get_restricted_packed_hand_to_move deal, (if is_new_trick deal then None else get_top_card deal), get_suit_led deal, is_top_card_winning_true deal)) in
+        recommendation = (if depth land 3 = 1 && depth > 12 then None else Hashtbl.find_opt recommendation_table (get_restricted_packed_hand_to_move deal, (if is_new_trick deal then None else get_top_card deal), get_suit_led deal, is_top_card_winning_true deal)) in
             (match recommendation with
                 | Some card -> iter_body @@ deal_after_playing card deal
                 | None -> ());
@@ -645,7 +645,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                            in wins @ losses
                     | _ -> List.rev sorted_successors));
     (if depth = topdepth && topdepth >= 28 then Printf.printf "\n%!");
-    (if depth land 3 <> 1 then
+    (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
         | x :: _ -> if Some x <> recommendation then Hashtbl.replace recommendation_table (get_restricted_packed_hand_to_move deal, (if is_new_trick deal then None else get_top_card deal), get_suit_led deal, is_top_card_winning_true deal) x
         | [] -> ());
