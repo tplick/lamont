@@ -662,17 +662,27 @@ let make_trans_table_tower () =
     done;
     !tower
 
-let evaluate_deal_gamma_top counter deal depth =
+let rec print_ledger opening ledger =
+    if opening then Printf.printf "[";
+    match ledger with
+        | [] -> Printf.printf "]\n"
+        | [x] -> Printf.printf "%d]\n%!" x
+        | x :: xs -> Printf.printf "%d " x; print_ledger false xs
+
+let evaluate_deal_gamma_top counter deal depth idx =
     Hashtbl.clear recommendation_table;
     let middle = ref 0 and variation = ref [] and
-        tower = make_trans_table_tower () in
+        tower = make_trans_table_tower () and
+        ledger = ref [] in
     for d = 1 to depth do
         if d land 3 = 0
             then (List.iter Hashtbl.clear tower;
                  let (new_middle, new_variation) =
                         evaluate_deal_gamma d counter tower deal d !middle
-                 in (middle := new_middle; variation := new_variation;
+                 in (middle := new_middle; variation := new_variation; ledger := new_middle :: !ledger;
                      Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (Hashtbl.length recommendation_table)))
     done;
+    Printf.printf "#%d: " (idx);
+    print_ledger true @@ List.rev !ledger;
     (!middle, !variation), !counter
 
