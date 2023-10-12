@@ -583,7 +583,8 @@ let play_lowest_if_any field suit_mask =
 
 let two_mask = 1 + 1 lsl 13 + 1 lsl 26 + 1 lsl 39
 let three_mask = two_mask lsl 1 and
-    four_mask = two_mask lsl 2
+    four_mask = two_mask lsl 2 and
+    low_mask = 63 * two_mask
 let get_throwaway_bit field =
     if field land two_mask <> 0
         then get_lowest_bit (field land two_mask)
@@ -593,6 +594,9 @@ let get_throwaway_bit field =
         else
     if field land four_mask <> 0
         then get_lowest_bit (field land four_mask)
+        else
+    if field land low_mask <> 0
+        then get_lowest_bit (field land low_mask)
         else
     get_lowest_bit field
 
