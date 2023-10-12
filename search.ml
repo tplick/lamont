@@ -625,6 +625,10 @@ let count_sequential_tricks deal suit_mask_list =
     in
     count_sequential_tricks' mine partners opp1 opp2 suit_mask_list
 
+let count_sequential_tricks_top deal =
+    max (count_sequential_tricks deal all_suit_masks_twice)
+        (count_sequential_tricks deal all_suit_masks_twice_rev)
+
 
 
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
@@ -694,7 +698,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
         else
 
     if depth land 3 = 0 && can_return_early iv (depth / 4)
-                          (count_sequential_tricks deal all_suit_masks_twice)
+                          (count_sequential_tricks_top deal)
                           middle
         then (middle + 1, [])
         else

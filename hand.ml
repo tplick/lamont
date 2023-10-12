@@ -16,6 +16,7 @@ let all_rank_string = "23456789TJQKA"
 let all_suit_masks = [8191; 8191 lsl 13; 8191 lsl 26; 8191 lsl 39]
 
 let all_suit_masks_twice = all_suit_masks @ all_suit_masks
+let all_suit_masks_twice_rev = List.rev all_suit_masks_twice
 
 (*
 let rec are_ranks_adjacent a b = function
