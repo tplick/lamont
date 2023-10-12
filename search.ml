@@ -581,11 +581,25 @@ let play_highest field suit_mask =
 let play_lowest_if_any field suit_mask =
     without_bit (get_lowest_bit @@ field land suit_mask) field
 
-(* TODO: This pitches the lowest club.  We should instead pitch the card of lowest rank. *)
+let two_mask = 1 + 1 lsl 13 + 1 lsl 26 + 1 lsl 39
+let three_mask = two_mask lsl 1 and
+    four_mask = two_mask lsl 2
+let get_throwaway_bit field =
+    if field land two_mask <> 0
+        then get_lowest_bit (field land two_mask)
+        else
+    if field land three_mask <> 0
+        then get_lowest_bit (field land three_mask)
+        else
+    if field land four_mask <> 0
+        then get_lowest_bit (field land four_mask)
+        else
+    get_lowest_bit field
+
 let play_lowest_or_any field suit_mask =
     match get_lowest_bit @@ field land suit_mask with
         | Some bit -> without_bit (Some bit) field
-        | None -> without_bit (get_lowest_bit field) field
+        | None -> without_bit (get_throwaway_bit field) field
 
 let can_play_sequential_trick_in_suit mine_all partners_all opp1_all opp2_all suit_mask =
     let mine = mine_all land suit_mask and
