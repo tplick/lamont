@@ -581,24 +581,18 @@ let play_highest field suit_mask =
 let play_lowest_if_any field suit_mask =
     without_bit (get_lowest_bit @@ field land suit_mask) field
 
+let lowest_bit_as_field field =
+    field land lnot (field - 1)
+
 let two_mask = 1 + 1 lsl 13 + 1 lsl 26 + 1 lsl 39
-let three_mask = two_mask lsl 1 and
-    four_mask = two_mask lsl 2 and
-    low_mask = 63 * two_mask
+let fold_mask field =
+    let mid = field lor (field lsr 26) in
+    let final = mid lor (mid lsr 13) in
+    final land 8191
 let get_throwaway_bit field =
-    if field land two_mask <> 0
-        then get_lowest_bit (field land two_mask)
-        else
-    if field land three_mask <> 0
-        then get_lowest_bit (field land three_mask)
-        else
-    if field land four_mask <> 0
-        then get_lowest_bit (field land four_mask)
-        else
-    if field land low_mask <> 0
-        then get_lowest_bit (field land low_mask)
-        else
-    get_lowest_bit field
+    let lowest_bit_field = lowest_bit_as_field (fold_mask field) in
+    let rank_mask = two_mask * lowest_bit_field in
+    get_lowest_bit (field land rank_mask)
 
 let play_lowest_or_any field suit_mask =
     match get_lowest_bit @@ field land suit_mask with
