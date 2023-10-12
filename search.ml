@@ -548,6 +548,85 @@ let get_restricted_packed_hand_to_move deal =
             let restricted = (ph land (List.nth all_suit_masks (Obj.magic suit)))
             in if restricted = 0 then PackedHand ph else PackedHand restricted
 
+
+
+let get_lowest_bit field =
+    let rec get_lowest_bit' field acc =
+        if field land 1 = 1 then acc else
+        if field land 255 = 0 then get_lowest_bit' (field lsr 8) (acc + 8) else
+        get_lowest_bit' (field lsr 1) (acc + 1)
+    in
+    if field = 0
+        then None
+        else Some (get_lowest_bit' field 0)
+
+let get_highest_bit field =
+    let rec get_highest_bit' field acc =
+        if field = 1 then acc else
+        if field land lnot 255 <> 0 then get_highest_bit' (field lsr 8) (acc + 8) else
+        get_highest_bit' (field lsr 1) (acc + 1)
+    in
+    if field = 0
+        then None
+        else Some (get_highest_bit' field 0)
+
+let without_bit bit_option field =
+    match bit_option with
+        | Some bit -> field land lnot (1 lsl bit)
+        | None -> field
+
+let play_highest field suit_mask =
+    without_bit (get_highest_bit @@ field land suit_mask) field
+
+let play_lowest_if_any field suit_mask =
+    without_bit (get_lowest_bit @@ field land suit_mask) field
+
+(* TODO: This pitches the lowest club.  We should instead pitch the card of lowest rank. *)
+let play_lowest_or_any field suit_mask =
+    match get_lowest_bit @@ field land suit_mask with
+        | Some bit -> without_bit (Some bit) field
+        | None -> without_bit (get_lowest_bit field) field
+
+let can_play_sequential_trick_in_suit mine_all partners_all opp1_all opp2_all suit_mask =
+    let mine = mine_all land suit_mask and
+        partners = partners_all land suit_mask and
+        opp1 = opp1_all land suit_mask and
+        opp2 = opp2_all land suit_mask in
+    if mine > 0 && mine > partners && mine > (opp1 lor opp2)
+        then `Mine
+        else
+    if mine > 0 && partners > mine && partners > (opp1 lor opp2)
+        then `Partner
+        else
+    `Neither
+
+let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list =
+    match suit_mask_list with
+        | [] -> 0
+        | suit_mask :: suit_masks_rest ->
+            match can_play_sequential_trick_in_suit mine partners opp1 opp2 suit_mask with
+                | `Mine -> 1 + count_sequential_tricks' (play_highest mine suit_mask)
+                                                        (play_lowest_or_any partners suit_mask)
+                                                        (play_lowest_if_any opp1 suit_mask)
+                                                        (play_lowest_if_any opp2 suit_mask)
+                                                        suit_mask_list
+                | `Partner -> 1 + count_sequential_tricks' (play_highest partners suit_mask)
+                                                           (play_lowest_or_any mine suit_mask)
+                                                           (play_lowest_if_any opp1 suit_mask)
+                                                           (play_lowest_if_any opp2 suit_mask)
+                                                           suit_mask_list
+                | `Neither -> count_sequential_tricks' mine partners opp1 opp2 suit_masks_rest
+
+let count_sequential_tricks deal suit_mask_list =
+    let PackedHand mine = get_packed_hand_to_move deal and
+        PackedHand partners = get_partners_packed_hand deal and
+        PackedHand opp1 = get_first_opponents_packed_hand deal and
+        PackedHand opp2 = get_second_opponents_packed_hand deal
+    in
+    count_sequential_tricks' mine partners opp1 opp2 suit_mask_list
+
+
+
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
     if depth = 0
@@ -611,6 +690,12 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
 
     if depth land 3 = 0 && can_return_early iv (depth / 4)
                           (count_long_suit_tricks_in_hand deal) middle
+        then (middle + 1, [])
+        else
+
+    if depth land 3 = 0 && can_return_early iv (depth / 4)
+                          (count_sequential_tricks deal all_suit_masks_twice)
+                          middle
         then (middle + 1, [])
         else
 

@@ -15,6 +15,8 @@ let all_suit_string = "\u{2663}\u{2662}\u{2661}\u{2660}"
 let all_rank_string = "23456789TJQKA"
 let all_suit_masks = [8191; 8191 lsl 13; 8191 lsl 26; 8191 lsl 39]
 
+let all_suit_masks_twice = all_suit_masks @ all_suit_masks
+
 (*
 let rec are_ranks_adjacent a b = function
     | [] | [_] -> false
