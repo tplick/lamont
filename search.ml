@@ -600,7 +600,7 @@ let can_play_sequential_trick_in_suit mine_all partners_all opp1_all opp2_all su
         else
     `Neither
 
-let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list =
+let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mask_list =
     match suit_mask_list with
         | [] -> 0
         | suit_mask :: suit_masks_rest ->
@@ -609,13 +609,17 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list =
                                                         (play_lowest_or_any partners suit_mask)
                                                         (play_lowest_if_any opp1 suit_mask)
                                                         (play_lowest_if_any opp2 suit_mask)
-                                                        suit_mask_list
+                                                        full_mask_list
+                                                        full_mask_list
                 | `Partner -> 1 + count_sequential_tricks' (play_highest partners suit_mask)
                                                            (play_lowest_or_any mine suit_mask)
                                                            (play_lowest_if_any opp1 suit_mask)
                                                            (play_lowest_if_any opp2 suit_mask)
-                                                           suit_mask_list
-                | `Neither -> count_sequential_tricks' mine partners opp1 opp2 suit_masks_rest
+                                                           full_mask_list
+                                                           full_mask_list
+                | `Neither -> count_sequential_tricks' mine partners opp1 opp2
+                                                       suit_masks_rest
+                                                       full_mask_list
 
 let count_sequential_tricks deal suit_mask_list =
     let PackedHand mine = get_packed_hand_to_move deal and
@@ -623,11 +627,11 @@ let count_sequential_tricks deal suit_mask_list =
         PackedHand opp1 = get_first_opponents_packed_hand deal and
         PackedHand opp2 = get_second_opponents_packed_hand deal
     in
-    count_sequential_tricks' mine partners opp1 opp2 suit_mask_list
+    count_sequential_tricks' mine partners opp1 opp2 suit_mask_list suit_mask_list
 
 let count_sequential_tricks_top deal =
-    max (count_sequential_tricks deal all_suit_masks_twice)
-        (count_sequential_tricks deal all_suit_masks_twice_rev)
+    max (count_sequential_tricks deal all_suit_masks)
+        (count_sequential_tricks deal all_suit_masks_rev)
 
 
 
