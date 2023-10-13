@@ -647,6 +647,47 @@ let count_sequential_tricks_top deal =
 
 
 
+
+let get_next_opponents_packed_hand (Deal d) =
+    List.nth d.d_hands ((d.d_to_move + 1) land 3)
+
+let get_previous_opponents_packed_hand (Deal d) =
+    List.nth d.d_hands ((d.d_to_move + 3) land 3)
+
+let count_sequential_tricks_for_2nd deal suit_mask_list =
+    let PackedHand mine = get_packed_hand_to_move deal and
+        PackedHand partners = get_partners_packed_hand deal and
+        PackedHand opp1 = get_next_opponents_packed_hand deal and
+        PackedHand opp2 = get_previous_opponents_packed_hand deal and
+        Some (Card (suit_led, rank_led) as card_led) = get_lead deal in
+    let suit_mask = List.nth all_suit_masks (Obj.magic suit_led)
+    in
+    if (mine land suit_mask) > 0 && (mine land suit_mask) > (partners land suit_mask) &&
+            (mine land suit_mask) > (opp1 land suit_mask) && (mine land suit_mask) > (1 lsl index_of_card card_led)
+        then 1 + count_sequential_tricks' (play_highest mine suit_mask)
+                                          (play_lowest_or_any partners suit_mask)
+                                          (play_lowest_if_any opp1 suit_mask)
+                                          opp2
+                                          suit_mask_list
+                                          suit_mask_list
+        else
+    if (mine land suit_mask) > 0 && (partners land suit_mask) > (mine land suit_mask) &&
+            (partners land suit_mask) > (opp1 land suit_mask) && (partners land suit_mask) > (1 lsl index_of_card card_led)
+        then 1 + count_sequential_tricks' (play_highest partners suit_mask)
+                                          (play_lowest_or_any mine suit_mask)
+                                          (play_lowest_if_any opp1 suit_mask)
+                                          opp2
+                                          suit_mask_list
+                                          suit_mask_list
+        else
+    0
+
+let count_sequential_tricks_for_2nd_top deal =
+    max (count_sequential_tricks_for_2nd deal all_suit_masks)
+        (count_sequential_tricks_for_2nd deal all_suit_masks_rev)
+
+
+
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
     if depth = 0
@@ -715,6 +756,12 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
 
     if depth land 3 = 0 && can_return_early iv (depth / 4)
                           (count_sequential_tricks_top deal)
+                          middle
+        then (middle + 1, [])
+        else
+
+    if depth land 3 = 3 && can_return_early iv ((depth+3) / 4)
+                          (count_sequential_tricks_for_2nd_top deal)
                           middle
         then (middle + 1, [])
         else
