@@ -527,6 +527,12 @@ let is_top_card_winning (Deal d) =
             List.for_all (fun card -> suit_of_card card = suit_of_card top && rank_of_card card < rank_of_card top) rest
         | [] -> false
 
+(* approximate for now *)
+let is_led_card_winning (Deal d as deal) =
+    match get_lead deal, d.d_played with
+        | Some lead, played ->
+            List.for_all (fun card -> lead = card || (suit_of_card card = suit_of_card lead && rank_of_card card < rank_of_card lead)) played
+
 let does_card_beat a b =
     suit_of_card a = suit_of_card b && rank_of_card a > rank_of_card b
 
@@ -794,7 +800,9 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                     | 1 -> let (wins, losses) = List.partition (fun succ -> same_sides_in_deals deal succ)
                                                                (List.rev sorted_successors)
                            in wins @ losses
-                    | 2 | 3 -> let (wins, losses) = List.partition is_top_card_winning @@ List.rev sorted_successors
+                    | 3 -> let (wins, losses) = List.partition (fun succ -> is_top_card_winning succ || is_led_card_winning succ) @@ List.rev sorted_successors
+                           in wins @ losses
+                    | 2 -> let (wins, losses) = List.partition is_top_card_winning @@ List.rev sorted_successors
                            in wins @ losses
                     | _ -> List.rev sorted_successors));
     (if depth = topdepth && topdepth >= 36 then Printf.printf "\n%!");
