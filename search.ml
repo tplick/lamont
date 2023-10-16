@@ -460,9 +460,18 @@ let deal_for_hash (Deal d as deal) =
     match (get_hands_from_deal @@ make_deal_canonical deal) with
         | (w, x, y, z) -> (w, x, y, z, d.d_to_move lsl 8 + ew lsl 4 + ns)
 
-let store_value_in_tt tt deal value =
+let clear_tt tt middle =
+    Hashtbl.filter_map_inplace
+        (fun k v ->
+            if v = middle + 1 || -v = -middle + 1 then None else Some v)
+    tt;
+    if Hashtbl.length tt >= 10000
+        then Hashtbl.clear tt
+        else ()
+
+let store_value_in_tt tt deal value middle =
    (if Hashtbl.length tt >= 10000
-        then Hashtbl.clear tt);
+        then clear_tt tt middle);
     Hashtbl.replace tt (deal_for_hash deal) value
 
 let look_up_value_in_tt tt deal =
@@ -711,7 +720,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     match (if depth land 3 = 0
                 then look_up_value_in_tt (List.hd tts) deal
                 else None) with
-        | Some x -> x
+        | Some x -> (x, [])
         | None ->
 
     if depth = 4 && iv = middle
@@ -812,7 +821,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
         | [] -> ());
 
     let return_value = (!best_value, !best_variation)
-    in (if depth land 3 = 0 then store_value_in_tt (List.hd tts) deal return_value);
+    in (if depth land 3 = 0 then store_value_in_tt (List.hd tts) deal !best_value middle);
     return_value
 
 let make_trans_table_tower () =
