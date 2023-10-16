@@ -463,7 +463,7 @@ let deal_for_hash (Deal d as deal) =
 let clear_tt tt middle =
     Hashtbl.filter_map_inplace
         (fun k v ->
-            if v = middle + 1 || -v = -middle + 1 then None else Some v)
+            if v = middle + 1 || -v = -middle + 1 then Some v else None)
     tt;
     if Hashtbl.length tt >= 10000
         then Hashtbl.clear tt
