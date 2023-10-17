@@ -458,12 +458,12 @@ let get_hands_from_deal (Deal d) = (* d.d_hands *)
 let deal_for_hash (Deal d as deal) =
     let (ew, ns) = d.d_tricks in
     match (get_hands_from_deal @@ make_deal_canonical deal) with
-        | (w, x, y, z) -> (w, x, y, z, d.d_to_move lsl 8 + ew lsl 4 + ns)
+        | (w, x, y, z) -> (w, x, y, z, d.d_to_move)
 
 let clear_tt tt middle =
     Hashtbl.filter_map_inplace
-        (fun k v ->
-            if v = middle + 1 || -v = -middle + 1 then Some v else None)
+        (fun k ((_, v) as x) ->
+            if v = middle + 1 || -v = -middle + 1 then Some x else None)
     tt;
     if Hashtbl.length tt >= 10000
         then Hashtbl.clear tt
@@ -472,10 +472,20 @@ let clear_tt tt middle =
 let store_value_in_tt tt deal value middle =
    (if Hashtbl.length tt >= 10000
         then clear_tt tt middle);
-    Hashtbl.replace tt (deal_for_hash deal) value
+    Hashtbl.replace tt (deal_for_hash deal) (immediate_value_of_deal deal, value)
 
-let look_up_value_in_tt tt deal =
-    Hashtbl.find_opt tt (deal_for_hash deal)
+let look_up_value_in_tt tt deal middle =
+    match Hashtbl.find_opt tt (deal_for_hash deal) with
+        | Some (stored_iv, value) ->
+            let this_iv = immediate_value_of_deal deal in
+            if this_iv <= stored_iv && value < middle
+                then Some value
+                else
+            if this_iv >= stored_iv && value > middle
+                then Some value
+                else
+            None
+        | None -> None
 
 let rec get_long_suit_tricks_in_suit mine partner opp1 opp2 =
     if mine > partner && mine > opp1 lor opp2
@@ -718,7 +728,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
         else
 
     match (if depth land 3 = 0
-                then look_up_value_in_tt (List.hd tts) deal
+                then look_up_value_in_tt (List.hd tts) deal middle
                 else None) with
         | Some x when x <> middle -> (x, [])
         | _ ->
