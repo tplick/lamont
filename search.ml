@@ -720,8 +720,8 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     match (if depth land 3 = 0
                 then look_up_value_in_tt (List.hd tts) deal
                 else None) with
-        | Some x -> (x, [])
-        | None ->
+        | Some x when x <> middle -> (x, [])
+        | _ ->
 
     if depth = 4 && iv = middle
         then (if can_side_win_next_trick deal then (middle + 1, []) else (middle - 1, []))
@@ -845,7 +845,7 @@ let evaluate_deal_gamma_top counter deal depth idx =
         ledger = ref [] in
     for d = 1 to depth do
         if d land 3 = 0
-            then (List.iter Hashtbl.clear tower;
+            then (if d mod 8 = 0 then List.iter Hashtbl.clear tower;
                  let (new_middle, new_variation) =
                         evaluate_deal_gamma d counter tower deal d !middle
                  in (middle := new_middle; variation := new_variation; ledger := new_middle :: !ledger;
