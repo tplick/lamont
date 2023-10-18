@@ -460,26 +460,22 @@ let deal_for_hash (Deal d as deal) =
     match (get_hands_from_deal @@ make_deal_canonical deal) with
         | (w, x, y, z) -> (w, x, y, z, d.d_to_move)
 
-let clear_idx = ref 3
-
 let clear_tt tt middle =
-    clear_idx := (!clear_idx + 1) land 3;
     Hashtbl.filter_map_inplace
-        (fun ((_, _, _, _, t) as k) x ->
-            if t <> !clear_idx then Some x else None)
-    tt;
-    if Hashtbl.length tt >= 10000
-        then Hashtbl.clear tt
-        else ()
+        (fun k (v, m, used) ->
+            if used > 0 then Some (v, m, used - 1) else None)
+    tt
 
 let store_value_in_tt tt deal value middle =
    (if Hashtbl.length tt >= 10000
         then clear_tt tt middle);
-    Hashtbl.replace tt (deal_for_hash deal) (immediate_value_of_deal deal, value)
+    Hashtbl.replace tt (deal_for_hash deal) (immediate_value_of_deal deal, value, 0)
 
 let look_up_value_in_tt tt deal middle =
-    match Hashtbl.find_opt tt (deal_for_hash deal) with
-        | Some (stored_iv, value) ->
+    let d4h = deal_for_hash deal in
+    let hash_val = Hashtbl.find_opt tt d4h in
+    let deal_val = (match hash_val with
+        | Some (stored_iv, value, _) ->
             let this_iv = immediate_value_of_deal deal in
             if this_iv <= stored_iv && value < middle
                 then Some value
@@ -488,7 +484,12 @@ let look_up_value_in_tt tt deal middle =
                 then Some value
                 else
             None
-        | None -> None
+        | None -> None)
+    in (match hash_val with
+        | Some (s, v, used) when deal_val <> None ->
+            Hashtbl.replace tt d4h (s, v, used + 1)
+        | _ -> ());
+    deal_val
 
 let rec get_long_suit_tricks_in_suit mine partner opp1 opp2 =
     if mine > partner && mine > opp1 lor opp2
@@ -730,7 +731,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
         then (middle - 1, [])
         else
 
-    match (if depth land 3 = 0
+    match (if d.d_turns land 3 = 0
                 then look_up_value_in_tt (List.hd tts) deal middle
                 else None) with
         | Some x when x <> middle -> (x, [])
@@ -834,7 +835,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
         | [] -> ());
 
     let return_value = (!best_value, !best_variation)
-    in (if depth land 3 = 0 then store_value_in_tt (List.hd tts) deal !best_value middle);
+    in (if d.d_turns land 3 = 0 then store_value_in_tt (List.hd tts) deal !best_value middle);
     return_value
 
 let make_trans_table_tower () =
@@ -853,7 +854,6 @@ let rec print_ledger opening ledger =
 
 let evaluate_deal_gamma_top counter deal depth idx =
     Hashtbl.clear recommendation_table;
-    clear_idx := 3;
     let middle = ref 0 and variation = ref [] and
         tower = make_trans_table_tower () and
         ledger = ref [] in
