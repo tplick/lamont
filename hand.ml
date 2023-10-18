@@ -232,6 +232,23 @@ let random_child deal =
         | cards -> let card = List.nth cards (Random.int @@ List.length cards)
                    in deal_after_playing card deal
 
+let card_currently_winning (Deal d as deal) =
+    if is_new_trick deal
+        then None
+        else
+    match get_lead deal with
+        | None -> None
+        | Some lead ->
+            let winner =
+                List.fold_left
+                    (fun old_c new_c ->
+                        if suit_of_card new_c = suit_of_card old_c && new_c > old_c
+                            then new_c
+                            else old_c)
+                    lead
+                    d.d_played
+            in Some winner
+
 let all_remaining_packed (Deal d as deal) =
     let in_play =
         if is_new_trick deal
