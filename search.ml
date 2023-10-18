@@ -460,10 +460,13 @@ let deal_for_hash (Deal d as deal) =
     match (get_hands_from_deal @@ make_deal_canonical deal) with
         | (w, x, y, z) -> (w, x, y, z, d.d_to_move)
 
+let clear_idx = ref 3
+
 let clear_tt tt middle =
+    clear_idx := (!clear_idx + 1) land 3;
     Hashtbl.filter_map_inplace
-        (fun k ((_, v) as x) ->
-            if v = middle + 1 || -v = -middle + 1 then Some x else None)
+        (fun ((_, _, _, _, t) as k) x ->
+            if t <> !clear_idx then Some x else None)
     tt;
     if Hashtbl.length tt >= 10000
         then Hashtbl.clear tt
@@ -850,6 +853,7 @@ let rec print_ledger opening ledger =
 
 let evaluate_deal_gamma_top counter deal depth idx =
     Hashtbl.clear recommendation_table;
+    clear_idx := 3;
     let middle = ref 0 and variation = ref [] and
         tower = make_trans_table_tower () and
         ledger = ref [] in
