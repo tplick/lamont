@@ -468,14 +468,14 @@ let deal_for_hash (Deal d as deal) =
 
 let clear_tt tt middle =
     Hashtbl.filter_map_inplace
-        (fun k (v, m, used) ->
-            if used > 0 then Some (v, m, used - 1) else None)
+        (fun k ((v, m, used) as x) ->
+            if !used > 0 then (decr used; Some x) else None)
     tt
 
 let store_value_in_tt tt deal value middle =
    (if Hashtbl.length tt >= 10000
         then clear_tt tt middle);
-    Hashtbl.replace tt (deal_for_hash deal) (immediate_value_of_deal deal, value, 0)
+    Hashtbl.replace tt (deal_for_hash deal) (immediate_value_of_deal deal, value, ref 0)
 
 let look_up_value_in_tt tt deal middle =
     let d4h = deal_for_hash deal in
@@ -492,8 +492,8 @@ let look_up_value_in_tt tt deal middle =
             None
         | None -> None)
     in (match hash_val with
-        | Some (s, v, used) when deal_val <> None ->
-            Hashtbl.replace tt d4h (s, v, used + 1)
+        | Some (_, _, used) when deal_val <> None ->
+            incr used
         | _ -> ());
     deal_val
 
@@ -827,10 +827,11 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                              ())) and
         recommendation = (if depth land 3 = 1 && depth > 12 then None else Hashtbl.find_opt recommendation_table (get_restricted_packed_hand_to_move deal, (card_currently_winning deal), get_suit_led deal, is_top_card_winning_true deal)) in
             (match recommendation with
-                | Some card -> iter_body @@ deal_after_playing card deal
+                | Some card_ref -> iter_body @@ deal_after_playing !card_ref deal
                 | None -> ());
             (if !best_value < middle || depth = topdepth
-                then List.iter (fun succ -> if get_last_play succ <> recommendation then iter_body succ)
+                then let recom = match recommendation with Some y -> Some !y | None -> None
+                in List.iter (fun succ -> if get_last_play succ <> recom then iter_body succ)
                 (let sorted_successors = sort_deals_by_last_play @@ successors_of_deal_without_equals deal in
                  match depth land 3 with
                     | 1 -> let (wins, losses) = List.partition (fun succ -> same_sides_in_deals deal succ)
@@ -844,7 +845,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     (if depth = topdepth && topdepth >= 36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
-        | x :: _ -> if Some x <> recommendation then Hashtbl.replace recommendation_table (get_restricted_packed_hand_to_move deal, (card_currently_winning deal), get_suit_led deal, is_top_card_winning_true deal) x
+        | x :: _ -> (match recommendation with Some y -> y := x | None -> Hashtbl.replace recommendation_table (get_restricted_packed_hand_to_move deal, (card_currently_winning deal), get_suit_led deal, is_top_card_winning_true deal) (ref x))
         | [] -> ());
 
     let return_value = (!best_value, !best_variation)
