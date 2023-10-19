@@ -456,9 +456,15 @@ let get_hands_from_deal (Deal d) = (* d.d_hands *)
         | _ -> raise (Failure "impossible")
 
 let deal_for_hash (Deal d as deal) =
+    match d.d_deal_for_hash with
+        | Some v -> v
+        | None ->
     let (ew, ns) = d.d_tricks in
     match (get_hands_from_deal @@ make_deal_canonical deal) with
-        | (w, x, y, z) -> (w, x, y, z, d.d_to_move)
+        | (w, x, y, z) ->
+            let result = (w, x, y, z, d.d_to_move)
+            in d.d_deal_for_hash <- Some result;
+            result
 
 let clear_tt tt middle =
     Hashtbl.filter_map_inplace
@@ -715,7 +721,14 @@ let count_sequential_tricks_for_2nd_top deal =
     max (count_sequential_tricks_for_2nd deal all_suit_masks)
         (count_sequential_tricks_for_2nd deal all_suit_masks_rev)
 
-
+let pull_from_tt tts succs middle =
+    match tts with
+        | _ :: tt :: _ ->
+    let a, b = List.partition (fun succ ->
+                    (* Hashtbl.find_opt tt (deal_for_hash succ) <> None) *)
+                    look_up_value_in_tt tt succ middle <> None)
+               succs
+    in a @ b
 
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
@@ -822,7 +835,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                  match depth land 3 with
                     | 1 -> let (wins, losses) = List.partition (fun succ -> same_sides_in_deals deal succ)
                                                                (List.rev sorted_successors)
-                           in wins @ losses
+                           in pull_from_tt tts wins middle @ pull_from_tt tts losses (-middle)
                     | 3 -> let (wins, losses) = List.partition (fun succ -> is_top_card_winning succ || is_led_card_winning succ) @@ List.rev sorted_successors
                            in wins @ losses
                     | 2 -> let (wins, losses) = List.partition is_top_card_winning @@ List.rev sorted_successors

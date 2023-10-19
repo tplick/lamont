@@ -103,7 +103,8 @@ type deal = Deal of {
     d_played: card list;
     d_tricks: int * int;
     d_turns: int;
-    d_last_play: card option
+    d_last_play: card option;
+    mutable d_deal_for_hash: (int * int * int * int * int) option
 }
 
 let rec deal_hands () =
@@ -121,7 +122,8 @@ let new_deal () =
         d_played = [];
         d_tricks = (0, 0);
         d_turns = 0;
-        d_last_play = None
+        d_last_play = None;
+        d_deal_for_hash = None
     }
 
 
@@ -193,7 +195,8 @@ let rotate_deal_to_winner (Deal d as deal) =
             in Deal {d with d_to_move = winner;
                             d_played = rotate_to_back d.d_played (Card (lead_suit, !winning_rank));
                             d_tricks = (ew_tricks + 1 - (winner land 1),
-                                        ns_tricks +     (winner land 1))}
+                                        ns_tricks +     (winner land 1));
+                            d_deal_for_hash = None}
         | None -> raise (Failure "impossible")
 
 let end_trick (Deal d as deal) =
@@ -220,7 +223,8 @@ let deal_after_playing card (Deal d as deal) =
                d_played = card :: (if is_new_trick deal then [] else d.d_played);
                d_to_move = (d.d_to_move + 1) land 3;
                d_turns = d.d_turns + 1;
-               d_last_play = Some card
+               d_last_play = Some card;
+               d_deal_for_hash = None
     }
     in end_trick child
 
