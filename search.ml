@@ -466,20 +466,29 @@ let deal_for_hash (Deal d as deal) =
             in d.d_deal_for_hash <- Some result;
             result
 
+module TTHashtbl = Hashtbl.Make (struct
+    type t = int * int * int * int * int
+    let equal (a, b, c, d, e) (v, w, x, y, z) =
+        let (===) (s : int) (t : int) = (s = t)
+        in a === v && b === w && c === x && d === y && e === z
+    let hash (a, b, c, d, e) =
+        (a - b lsl 1 + c lsl 2 - d lsl 3 + e lsl 56) mod 16383
+end)
+
 let clear_tt tt middle =
-    Hashtbl.filter_map_inplace
+    TTHashtbl.filter_map_inplace
         (fun k ((v, m, used) as x) ->
             if !used > 0 then (decr used; Some x) else None)
     tt
 
 let store_value_in_tt tt deal value middle =
-   (if Hashtbl.length tt >= 10000
+   (if TTHashtbl.length tt >= 10000
         then clear_tt tt middle);
-    Hashtbl.replace tt (deal_for_hash deal) (immediate_value_of_deal deal, value, ref 0)
+    TTHashtbl.replace tt (deal_for_hash deal) (immediate_value_of_deal deal, value, ref 0)
 
 let look_up_value_in_tt tt deal middle =
     let d4h = deal_for_hash deal in
-    let hash_val = Hashtbl.find_opt tt d4h in
+    let hash_val = TTHashtbl.find_opt tt d4h in
     let deal_val = (match hash_val with
         | Some (stored_iv, value, _) ->
             let this_iv = immediate_value_of_deal deal in
@@ -855,7 +864,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
 let make_trans_table_tower () =
     let tower = ref [] in
     for i = 0 to 52 do
-        tower := (Hashtbl.create 10000) :: !tower
+        tower := (TTHashtbl.create 10000) :: !tower
     done;
     !tower
 
@@ -873,7 +882,7 @@ let evaluate_deal_gamma_top counter deal depth idx =
         ledger = ref [] in
     for d = 1 to depth do
         if d land 3 = 0
-            then (if d mod 8 = 0 then List.iter Hashtbl.clear tower;
+            then (if d mod 8 = 0 then List.iter TTHashtbl.clear tower;
                  let (new_middle, new_variation) =
                         evaluate_deal_gamma d counter tower deal d !middle
                  in (middle := new_middle; variation := new_variation; ledger := new_middle :: !ledger;
