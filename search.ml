@@ -739,6 +739,13 @@ let pull_from_tt tts succs middle =
                succs
     in a @ b
 
+let report_deal deal depth middle =
+    print_deal deal;
+    Printf.printf "depth %d,   iv %d,   middle %d\n\n%!"
+        depth
+        (immediate_value_of_deal deal)
+        middle
+
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
     if depth = 0
@@ -819,6 +826,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
 
     let best_value = ref (-1000) and
         best_variation = ref [] in
+    (* (if d.d_turns = 40 && depth >= 12 then report_deal deal depth middle); *)
     let iter_body =
                 (fun succ ->
                              if !best_value > middle
