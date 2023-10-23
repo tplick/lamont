@@ -484,7 +484,7 @@ let clear_tt tt middle =
 let store_value_in_tt tt deal value middle =
    (if TTHashtbl.length tt >= 10000
         then clear_tt tt middle);
-    TTHashtbl.replace tt (deal_for_hash deal) (immediate_value_of_deal deal, value, ref 0)
+    TTHashtbl.replace tt (deal_for_hash deal) (immediate_value_of_deal deal, value, ref 6)
 
 let look_up_value_in_tt tt deal middle =
     let d4h = deal_for_hash deal in
