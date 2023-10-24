@@ -746,6 +746,27 @@ let report_deal deal depth middle =
         (immediate_value_of_deal deal)
         middle
 
+let rec postpone_double_suits succs queue round =
+    if round = 0
+        then List.rev @@ sort_deals_by_last_play succs
+        else
+    let aos = Card (Spade, RA) in
+    match succs with
+        | [] -> postpone_double_suits queue [] (round - 1)
+        | [x] -> x :: postpone_double_suits [] queue round
+        | x :: y :: rest ->
+            if suit_of_card (extract aos (get_last_play x)) = suit_of_card (extract aos (get_last_play y))
+                then postpone_double_suits (x :: rest) (y :: queue) round
+                else x :: postpone_double_suits (y :: rest) queue round
+
+let sort_first_four_succs succs =
+    let first, second = match succs with
+        | a :: b :: c :: d :: xs ->
+            [a; b; c; d], xs
+        | _ ->
+            [], succs
+    in (List.rev @@ sort_deals_by_last_play first) @ (List.rev @@ sort_deals_by_last_play second)
+
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
     if depth = 0
@@ -825,18 +846,21 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
         else
 
     let best_value = ref (-1000) and
-        best_variation = ref [] in
+        best_variation = ref [] and
+        aos = Card (Spade, RA) and
+        has_printed_excl = ref false in
     (* (if d.d_turns = 40 && depth >= 12 then report_deal deal depth middle); *)
     let iter_body =
                 (fun succ ->
                              if !best_value > middle
-                                then (if depth = topdepth && topdepth >= 36 then Printf.printf "X%!")
-                                else (if depth = topdepth && topdepth >= 36 then Printf.printf ".%!";
+                                then (if depth = topdepth && topdepth >= -36 then (if not !has_printed_excl then (Printf.printf "!"; has_printed_excl := true); Printf.printf " [%s]%!" (string_of_card @@ extract aos (get_last_play succ))))
+                                else (if depth = topdepth && topdepth >= -36 then Printf.printf " %s...%!" (string_of_card @@ extract aos (get_last_play succ));
                              let value, variation = evaluate_deal_gamma topdepth counter (List.tl tts) succ (depth - 1)
                                                     (if same_sides_in_deals deal succ then middle else -middle)
                              in let adjusted_value = (if same_sides_in_deals deal succ then value else -value)
                              in if adjusted_value > !best_value
-                                    then (best_value := adjusted_value;
+                                    then (
+                                          best_value := adjusted_value;
                                           best_variation :=
                                  match get_last_play succ with
                                     | Some x -> x :: variation
@@ -849,7 +873,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
             (if !best_value < middle || depth = topdepth
                 then let recom = match recommendation with Some y -> Some !y | None -> None
                 in List.iter (fun succ -> if get_last_play succ <> recom then iter_body succ)
-                (let sorted_successors = sort_deals_by_last_play @@ successors_of_deal_without_equals deal in
+                (let sorted_successors = (if depth land 3 = 0 then (fun x -> x) else sort_deals_by_last_play) @@ successors_of_deal_without_equals deal in
                  match depth land 3 with
                     | 1 -> let (wins, losses) = List.partition (fun succ -> same_sides_in_deals deal succ)
                                                                (List.rev sorted_successors)
@@ -858,8 +882,8 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                            in wins @ losses
                     | 2 -> let (wins, losses) = List.partition is_top_card_winning @@ List.rev sorted_successors
                            in wins @ losses
-                    | _ -> List.rev sorted_successors));
-    (if depth = topdepth && topdepth >= 36 then Printf.printf "\n%!");
+                    | _ -> sort_first_four_succs @@ postpone_double_suits (List.rev sorted_successors) [] 1));
+    (if depth = topdepth && topdepth >= -36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
         | x :: _ -> (match recommendation with Some y -> y := x | None -> Hashtbl.replace recommendation_table (get_restricted_packed_hand_to_move deal, (card_currently_winning deal), get_suit_led deal, is_top_card_winning_true deal) (ref x))
