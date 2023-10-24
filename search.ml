@@ -748,7 +748,7 @@ let report_deal deal depth middle =
 
 let rec postpone_double_suits succs queue round =
     if round = 0
-        then List.rev @@ sort_deals_by_last_play succs
+        then succs
         else
     let aos = Card (Spade, RA) in
     match succs with
@@ -765,7 +765,7 @@ let sort_first_four_succs succs =
             [a; b; c; d], xs
         | _ ->
             [], succs
-    in (List.rev @@ sort_deals_by_last_play first) @ (List.rev @@ sort_deals_by_last_play second)
+    in (List.rev @@ sort_deals_by_last_play first) @ (List.rev @@ second)
 
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
