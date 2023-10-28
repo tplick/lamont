@@ -784,7 +784,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     match (if d.d_turns land 3 = 0
                 then look_up_value_in_tt (List.hd tts) deal middle
                 else None) with
-        | Some x when x <> middle -> (x, [])
+        | Some x when x <> middle -> (if x > middle then middle + 1 else middle - 1), []
         | _ ->
 
     if depth = 4 && iv = middle
@@ -907,6 +907,13 @@ let rec print_ledger opening ledger =
         | [x] -> Printf.printf "%d]\n%!" x
         | x :: xs -> Printf.printf "%d " x; print_ledger false xs
 
+let clean_tt_tower tower comparison =
+    List.iter (fun tt ->
+        TTHashtbl.filter_map_inplace (fun _ ((v, m, u) as x) ->
+            if comparison v m then None else Some x)
+            tt)
+        tower
+
 let evaluate_deal_gamma_top counter deal depth idx =
     Hashtbl.clear recommendation_table;
     let middle = ref 0 and variation = ref [] and
@@ -917,7 +924,8 @@ let evaluate_deal_gamma_top counter deal depth idx =
             then (if d mod 8 = 0 then List.iter TTHashtbl.clear tower;
                  let (new_middle, new_variation) =
                         evaluate_deal_gamma d counter tower deal d !middle
-                 in (middle := new_middle; variation := new_variation; ledger := new_middle :: !ledger;
+                 in (
+                     middle := new_middle; variation := new_variation; ledger := new_middle :: !ledger;
                      Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (Hashtbl.length recommendation_table)))
     done;
     Printf.printf "#%d: " (idx);
