@@ -501,8 +501,10 @@ let look_up_value_in_tt tt deal middle =
             None
         | None -> None)
     in (match hash_val with
-        | Some (_, _, used) when deal_val <> None ->
-            incr used
+        | Some (_, _, used) ->
+            if deal_val <> None
+                then incr used
+                else decr used
         | _ -> ());
     deal_val
 
@@ -907,10 +909,11 @@ let rec print_ledger opening ledger =
         | [x] -> Printf.printf "%d]\n%!" x
         | x :: xs -> Printf.printf "%d " x; print_ledger false xs
 
-let clean_tt_tower tower comparison =
+let clean_tt_tower tower comparison new_middle =
     List.iter (fun tt ->
         TTHashtbl.filter_map_inplace (fun _ ((v, m, u) as x) ->
-            if comparison v m then None else Some x)
+            if comparison v m && comparison m new_middle
+                then Some x else None)
             tt)
         tower
 
@@ -921,10 +924,10 @@ let evaluate_deal_gamma_top counter deal depth idx =
         ledger = ref [] in
     for d = 1 to depth do
         if d land 3 = 0
-            then (if d mod 8 = 0 then List.iter TTHashtbl.clear tower;
+            then ( (* if d mod 8 = 0 then List.iter TTHashtbl.clear tower; *)
                  let (new_middle, new_variation) =
                         evaluate_deal_gamma d counter tower deal d !middle
-                 in (
+                 in (clean_tt_tower tower (if new_middle > !middle then (<=) else (>=)) !middle;
                      middle := new_middle; variation := new_variation; ledger := new_middle :: !ledger;
                      Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (Hashtbl.length recommendation_table)))
     done;
