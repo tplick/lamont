@@ -594,6 +594,14 @@ let get_restricted_packed_hand_to_move deal =
             let restricted = (ph land (List.nth all_suit_masks (Obj.magic suit)))
             in if restricted = 0 then PackedHand ph else PackedHand restricted
 
+let get_restricted_partners_packed_hand deal =
+    let PackedHand ph = get_partners_packed_hand deal
+    in match get_suit_led deal with
+        | None -> PackedHand ph
+        | Some suit ->
+            let restricted = (ph land (List.nth all_suit_masks (Obj.magic suit)))
+            in if restricted = 0 then PackedHand ph else PackedHand restricted
+
 
 
 let get_lowest_bit field =
@@ -868,7 +876,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                                     | Some x -> x :: variation
                                     | None -> variation);
                              ())) and
-        recommendation = (if depth land 3 = 1 && depth > 12 then None else Hashtbl.find_opt recommendation_table (get_restricted_packed_hand_to_move deal, (card_currently_winning deal), get_suit_led deal, is_top_card_winning_true deal)) in
+        recommendation = (if depth land 3 = 1 && depth > 12 then None else Hashtbl.find_opt recommendation_table (get_restricted_packed_hand_to_move deal, get_highest_bit (match get_restricted_partners_packed_hand deal with PackedHand x -> x), (card_currently_winning deal), get_suit_led deal, is_top_card_winning_true deal)) in
             (match recommendation with
                 | Some card_ref -> iter_body @@ deal_after_playing !card_ref deal
                 | None -> ());
@@ -888,7 +896,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     (if depth = topdepth && topdepth >= -36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
-        | x :: _ -> (match recommendation with Some y -> y := x | None -> Hashtbl.replace recommendation_table (get_restricted_packed_hand_to_move deal, (card_currently_winning deal), get_suit_led deal, is_top_card_winning_true deal) (ref x))
+        | x :: _ -> (match recommendation with Some y -> y := x | None -> Hashtbl.replace recommendation_table (get_restricted_packed_hand_to_move deal, get_highest_bit (match get_restricted_partners_packed_hand deal with PackedHand x -> x), (card_currently_winning deal), get_suit_led deal, is_top_card_winning_true deal) (ref x))
         | [] -> ());
 
     let return_value = (!best_value, !best_variation)
