@@ -756,26 +756,37 @@ let report_deal deal depth middle =
         (immediate_value_of_deal deal)
         middle
 
-let rec postpone_double_suits succs queue round =
-    if round = 0
-        then succs
-        else
+let rec postpone_double_suits pulled kicked queue =
     let aos = Card (Spade, RA) in
-    match succs with
-        | [] -> postpone_double_suits queue [] (round - 1)
-        | [x] -> x :: postpone_double_suits [] queue round
+    match queue with
+        | [] -> (pulled, kicked)
+        | [x] -> postpone_double_suits (x :: pulled) kicked []
         | x :: y :: rest ->
             if suit_of_card (extract aos (get_last_play x)) = suit_of_card (extract aos (get_last_play y))
-                then postpone_double_suits (x :: rest) (y :: queue) round
-                else x :: postpone_double_suits (y :: rest) queue round
+                then postpone_double_suits (pulled) (y :: kicked) (x :: rest)
+                else postpone_double_suits (x :: pulled) (kicked) (y :: rest)
 
+let rec sort_suits_backwards first second =
+    match first with
+        | [] -> second
+        | x :: xs ->
+            let target_suit = (match get_last_play x with Some (Card (suit, _)) -> Some suit | None -> None) in
+            let a, b = List.partition (fun succ -> match get_last_play succ with Some (Card (suit, _)) when Some suit = target_suit -> true | _ -> false) second
+            in sort_suits_backwards xs (a @ b)
+(*
 let sort_first_four_succs succs =
     let first, second = match succs with
         | a :: b :: c :: d :: xs ->
             [a; b; c; d], xs
         | _ ->
             [], succs
-    in (List.rev @@ sort_deals_by_last_play first) @ (List.rev @@ second)
+    in let e = (List.rev @@ sort_deals_by_last_play first) and
+           f = (List.rev @@ second) in
+    e @ (sort_suits_backwards e f)
+*)
+
+let sort_first_different_suits (first, second) =
+    first @ sort_suits_backwards (List.rev @@ sort_deals_by_last_play first) (List.rev second)
 
 
 let make_recom_key deal =
@@ -901,7 +912,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                            in wins @ losses
                     | 2 -> let (wins, losses) = List.partition is_top_card_winning @@ List.rev sorted_successors
                            in wins @ losses
-                    | _ -> sort_first_four_succs @@ postpone_double_suits (List.rev sorted_successors) [] 1));
+                    | _ -> sort_first_different_suits @@ postpone_double_suits [] [] (List.rev sorted_successors)));
     (if depth = topdepth && topdepth >= -36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
