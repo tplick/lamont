@@ -370,6 +370,7 @@ let count_top_tricks_in_hand deal =
         all_suit_masks
 
 let recommendation_table = Hashtbl.create 10000
+let suit_ordering = ref all_suits
 
 let move_successor_to_front card succs =
     let (a, b) = List.partition (fun succ -> get_last_play succ = Some card) succs
@@ -786,7 +787,8 @@ let sort_first_four_succs succs =
 *)
 
 let sort_first_different_suits (first, second) =
-    first @ sort_suits_backwards (List.rev @@ sort_deals_by_last_play first) (List.rev second)
+    (first) @
+    sort_suits_backwards (first) (List.rev second)
 
 
 let make_recom_key deal =
@@ -796,8 +798,28 @@ let make_recom_key deal =
     get_suit_led deal,
     is_top_card_winning_true deal)
 
+let reset_suit_ordering () =
+    let freqs = Hashtbl.create 4 in
+    List.iter (fun suit -> Hashtbl.replace freqs suit 0) all_suits;
+    Hashtbl.iter (fun k card_ref ->
+            let suit = suit_of_card !card_ref in
+            Hashtbl.replace freqs suit (Hashtbl.find freqs suit + 1))
+        recommendation_table;
+    suit_ordering := List.stable_sort (fun a b ->
+            Hashtbl.find freqs a - Hashtbl.find freqs b)
+        all_suits
+
+let rec sort_kicked_by_ordering kicked ordering =
+    match ordering with
+        | [] -> kicked
+        | x :: xs ->
+            let a, b = List.partition (fun succ -> match get_last_play succ with Some card when suit_of_card card = x -> true | _ -> false) kicked
+            in sort_kicked_by_ordering (a @ b) xs
 
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
+    (if !counter land 65535 = 0
+        then reset_suit_ordering ());
+
     incr counter;
     if depth = 0
         then (let iv = immediate_value_of_deal deal
@@ -912,7 +934,9 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                            in wins @ losses
                     | 2 -> let (wins, losses) = List.partition is_top_card_winning @@ List.rev sorted_successors
                            in wins @ losses
-                    | _ -> sort_first_different_suits @@ postpone_double_suits [] [] (List.rev sorted_successors)));
+                    | _ -> let pulled, kicked = postpone_double_suits [] [] (List.rev sorted_successors)
+                           in (sort_kicked_by_ordering pulled !suit_ordering) @
+                              (sort_kicked_by_ordering (List.rev kicked) !suit_ordering)));
     (if depth = topdepth && topdepth >= -36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
