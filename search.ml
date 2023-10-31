@@ -777,6 +777,15 @@ let sort_first_four_succs succs =
             [], succs
     in (List.rev @@ sort_deals_by_last_play first) @ (List.rev @@ second)
 
+
+let make_recom_key deal =
+   (get_restricted_packed_hand_to_move deal,
+    get_highest_bit (match get_restricted_partners_packed_hand deal with PackedHand x -> x),
+    (card_currently_winning deal),
+    get_suit_led deal,
+    is_top_card_winning_true deal)
+
+
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
     if depth = 0
@@ -876,7 +885,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                                     | Some x -> x :: variation
                                     | None -> variation);
                              ())) and
-        recommendation = (if depth land 3 = 1 && depth > 12 then None else Hashtbl.find_opt recommendation_table (get_restricted_packed_hand_to_move deal, get_highest_bit (match get_restricted_partners_packed_hand deal with PackedHand x -> x), (card_currently_winning deal), get_suit_led deal, is_top_card_winning_true deal)) in
+        recommendation = (if depth land 3 = 1 && depth > 12 then None else Hashtbl.find_opt recommendation_table (make_recom_key deal)) in
             (match recommendation with
                 | Some card_ref -> iter_body @@ deal_after_playing !card_ref deal
                 | None -> ());
@@ -896,7 +905,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     (if depth = topdepth && topdepth >= -36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
-        | x :: _ -> (match recommendation with Some y -> y := x | None -> Hashtbl.replace recommendation_table (get_restricted_packed_hand_to_move deal, get_highest_bit (match get_restricted_partners_packed_hand deal with PackedHand x -> x), (card_currently_winning deal), get_suit_led deal, is_top_card_winning_true deal) (ref x))
+        | x :: _ -> (match recommendation with Some y -> y := x | None -> Hashtbl.replace recommendation_table (make_recom_key deal) (ref x))
         | [] -> ());
 
     let return_value = (!best_value, !best_variation)
