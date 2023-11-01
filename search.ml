@@ -934,9 +934,9 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                            in wins @ losses
                     | 2 -> let (wins, losses) = List.partition is_top_card_winning @@ List.rev sorted_successors
                            in wins @ losses
-                    | _ -> let pulled, kicked = postpone_double_suits [] [] (List.rev sorted_successors)
-                           in (sort_kicked_by_ordering pulled !suit_ordering) @
-                              (sort_kicked_by_ordering (List.rev kicked) !suit_ordering)));
+                    | _ -> (* let pulled, kicked = postpone_double_suits [] [] (List.rev sorted_successors)
+                           in *)
+                              (sort_kicked_by_ordering (List.rev sorted_successors) !suit_ordering)));
     (if depth = topdepth && topdepth >= -36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
