@@ -460,7 +460,6 @@ let deal_for_hash (Deal d as deal) =
     match d.d_deal_for_hash with
         | Some v -> v
         | None ->
-    let (ew, ns) = d.d_tricks in
     match (get_hands_from_deal @@ make_deal_canonical deal) with
         | (w, x, y, z) ->
             let result = (w, x, y, z, d.d_to_move)
@@ -573,6 +572,7 @@ let is_led_card_winning (Deal d as deal) =
     match get_lead deal, d.d_played with
         | Some lead, played ->
             List.for_all (fun card -> lead = card || (suit_of_card card = suit_of_card lead && rank_of_card card < rank_of_card lead)) played
+        | None, _ -> false
 
 let does_card_beat a b =
     suit_of_card a = suit_of_card b && rank_of_card a > rank_of_card b
@@ -713,8 +713,10 @@ let count_sequential_tricks_for_2nd deal suit_mask_list =
     let PackedHand mine = get_packed_hand_to_move deal and
         PackedHand partners = get_partners_packed_hand deal and
         PackedHand opp1 = get_next_opponents_packed_hand deal and
-        PackedHand opp2 = get_previous_opponents_packed_hand deal and
-        Some (Card (suit_led, rank_led) as card_led) = get_lead deal in
+        PackedHand opp2 = get_previous_opponents_packed_hand deal in
+    match get_lead deal with
+        | None -> raise (Failure "count_sequential_tricks_for_2nd called on new trick")
+        | Some (Card (suit_led, rank_led) as card_led) ->
     let suit_mask = List.nth all_suit_masks (Obj.magic suit_led)
     in
     if (mine land suit_mask) > 0 && (mine land suit_mask) > (partners land suit_mask) &&
@@ -745,10 +747,10 @@ let pull_from_tt tts succs middle =
     match tts with
         | _ :: tt :: _ ->
     let a, b = List.partition (fun succ ->
-                    (* Hashtbl.find_opt tt (deal_for_hash succ) <> None) *)
                     look_up_value_in_tt tt succ middle <> None)
                succs
     in a @ b
+        | _ -> succs
 
 let report_deal deal depth middle =
     print_deal deal;
