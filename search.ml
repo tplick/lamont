@@ -377,7 +377,7 @@ let set_default_ordering deal0 =
     let deal = ref deal0 in
     let whole_tallies = Array.make 4 1 in
     for i = 0 to 3 do
-        let tallies = Array.make 4 0 in
+        let tallies = Array.make 4 1 in
         List.iter (fun succ ->
             let idx = match get_last_play succ with Some (Card (suit, _)) -> Obj.magic suit | None -> -1 in
             tallies.(idx) <- tallies.(idx) + 1)
