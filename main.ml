@@ -1,4 +1,29 @@
 
+let permutations =
+    let aref = ref [] in
+    for w = 0 to 3 do
+    for x = 0 to 3 do
+    for y = 0 to 3 do
+    for z = 0 to 3 do
+        if List.sort compare [w; x; y; z] = [0; 1; 2; 3] then
+            aref := (Array.of_list @@ List.map (List.nth all_suits) [w; x; y; z]) :: !aref
+    done
+    done
+    done
+    done;
+    Array.of_list @@ List.rev !aref
+
+let permutation = ref permutations.(0)
+
+let permute_card perm (Card (suit, rank)) =
+    Card (perm.(Obj.magic suit), rank)
+
+let permute_hand perm (Hand h) =
+    Hand (List.map (permute_card perm) h)
+
+let permute_deal perm (Deal d) =
+    Deal {d with d_hands = List.map (fun hand -> pack_hand @@ permute_hand perm @@ unpack_hand hand) d.d_hands}
+
 let analyze_deal deal counter idx =
     print_deal deal;
     List.iter (fun depth ->
@@ -16,7 +41,7 @@ let run_benchmark limit =
     for i = 1 to limit do
         Printf.printf "#%d\n" i;
         let d = new_deal ()
-        in analyze_deal d counter i;
+        in analyze_deal (permute_deal !permutation d) counter i;
         Printf.printf "\n"
     done;
     Printf.printf "Saw %d nodes.\n" !counter
@@ -27,18 +52,25 @@ let run_single idx =
         let d = new_deal ()
         in if i = idx then
             (Printf.printf "#%d\n" i;
-             analyze_deal d counter i;
+             analyze_deal (permute_deal !permutation d) counter i;
              Printf.printf "\n")
     done;
     Printf.printf "Saw %d nodes.\n" !counter
 
-let _ =
-    let arg_queue = ref (List.tl @@ Array.to_list Sys.argv) in
-    let next_arg () = (let arg = List.hd !arg_queue in arg_queue := List.tl !arg_queue; arg) in
+let rec process_args next_arg =
     match next_arg () with
+        | "-perm" -> permutation := permutations.(int_of_string (next_arg ()));
+                     process_args next_arg
+        | "-order" -> default_ordering := Array.to_list permutations.(int_of_string (next_arg ()));
+                      process_args next_arg
         | "-bench" -> let limit = int_of_string (next_arg ())
                       in run_benchmark limit
         | "-single" -> let idx = int_of_string (next_arg ())
                       in run_single idx
         | _ -> Printf.printf "Bad arguments.\n"
+
+let _ =
+    let arg_queue = ref (List.tl @@ Array.to_list Sys.argv) in
+    let next_arg () = (let arg = List.hd !arg_queue in arg_queue := List.tl !arg_queue; arg) in
+    process_args next_arg
 

@@ -371,6 +371,23 @@ let count_top_tricks_in_hand deal =
 
 let recommendation_table = Hashtbl.create 10000
 let suit_ordering = ref all_suits
+let default_ordering = ref all_suits
+
+let set_default_ordering deal0 =
+    let deal = ref deal0 in
+    let whole_tallies = Array.make 4 1 in
+    for i = 0 to 3 do
+        let tallies = Array.make 4 0 in
+        List.iter (fun succ ->
+            let idx = match get_last_play succ with Some (Card (suit, _)) -> Obj.magic suit | None -> -1 in
+            tallies.(idx) <- tallies.(idx) + 1)
+            (successors_of_deal_without_equals !deal);
+        for s = 0 to 3 do
+            whole_tallies.(s) <- whole_tallies.(s) * tallies.(s)
+        done;
+        deal := match !deal with (Deal d) -> Deal {d with d_to_move = (d.d_to_move + 1) land 3}
+    done;
+    default_ordering := List.stable_sort (fun a b -> whole_tallies.(Obj.magic a) - whole_tallies.(Obj.magic b)) all_suits
 
 let move_successor_to_front card succs =
     let (a, b) = List.partition (fun succ -> get_last_play succ = Some card) succs
@@ -809,7 +826,7 @@ let reset_suit_ordering () =
         recommendation_table;
     suit_ordering := List.stable_sort (fun a b ->
             Hashtbl.find freqs a - Hashtbl.find freqs b)
-        all_suits
+        !default_ordering
 
 let rec sort_kicked_by_ordering kicked ordering =
     match ordering with
@@ -819,9 +836,6 @@ let rec sort_kicked_by_ordering kicked ordering =
             in sort_kicked_by_ordering (a @ b) xs
 
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
-    (if !counter land 65535 = 0
-        then reset_suit_ordering ());
-
     incr counter;
     if depth = 0
         then (let iv = immediate_value_of_deal deal
@@ -973,12 +987,14 @@ let clean_tt_tower tower comparison new_middle =
 
 let evaluate_deal_gamma_top counter deal depth idx =
     Hashtbl.clear recommendation_table;
+    set_default_ordering deal;
     let middle = ref 0 and variation = ref [] and
         tower = make_trans_table_tower () and
         ledger = ref [] in
     for d = 1 to depth do
         if d land 3 = 0
             then ( (* if d mod 8 = 0 then List.iter TTHashtbl.clear tower; *)
+                 reset_suit_ordering ();
                  let (new_middle, new_variation) =
                         evaluate_deal_gamma d counter tower deal d !middle
                  in (clean_tt_tower tower (if new_middle > !middle then (<=) else (>=)) !middle;
