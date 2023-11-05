@@ -833,7 +833,8 @@ let rec sort_kicked_by_ordering kicked ordering =
         | [] -> kicked
         | x :: xs ->
             let a, b = List.partition (fun succ -> match get_last_play succ with Some card when suit_of_card card = x -> true | _ -> false) kicked
-            in sort_kicked_by_ordering (a @ b) xs
+            in let c, d = List.partition (fun succ -> not @@ can_2nd_player_win_next_trick succ) a
+            in sort_kicked_by_ordering (c @ d @ b) xs
 
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
