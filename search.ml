@@ -370,7 +370,7 @@ let count_top_tricks_in_hand deal =
         all_suit_masks
 
 let recommendation_table = Hashtbl.create 10000
-let suit_ordering = ref all_suits
+let suit_ordering = Array.make 4 all_suits
 let default_ordering = ref all_suits
 
 let set_default_ordering deal0 =
@@ -810,21 +810,23 @@ let sort_first_different_suits (first, second) =
     sort_suits_backwards (first) (List.rev second)
 
 
-let make_recom_key deal =
+let make_recom_key (Deal d as deal) =
    (get_restricted_packed_hand_to_move deal,
     get_highest_bit (match get_restricted_partners_packed_hand deal with PackedHand x -> x),
     (card_currently_winning deal),
     get_suit_led deal,
-    is_top_card_winning_true deal)
+    is_top_card_winning_true deal,
+    d.d_to_move)
 
-let reset_suit_ordering () =
+let reset_suit_ordering player =
     let freqs = Hashtbl.create 4 in
     List.iter (fun suit -> Hashtbl.replace freqs suit 0) all_suits;
-    Hashtbl.iter (fun k card_ref ->
+    Hashtbl.iter (fun (_, _, _, suit_led, _, player_) card_ref ->
+          if player land 1 <> player_ land 1 && suit_led = None then
             let suit = suit_of_card !card_ref in
             Hashtbl.replace freqs suit (Hashtbl.find freqs suit + 1))
         recommendation_table;
-    suit_ordering := List.stable_sort (fun a b ->
+    suit_ordering.(player) <- List.stable_sort (fun a b ->
             Hashtbl.find freqs a - Hashtbl.find freqs b)
         !default_ordering
 
@@ -953,7 +955,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                            in wins @ losses
                     | _ -> (* let pulled, kicked = postpone_double_suits [] [] (List.rev sorted_successors)
                            in *)
-                              (sort_kicked_by_ordering (List.rev sorted_successors) !suit_ordering)));
+                              (sort_kicked_by_ordering (List.rev sorted_successors) suit_ordering.(d.d_to_move))));
     (if depth = topdepth && topdepth >= -36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
@@ -995,7 +997,7 @@ let evaluate_deal_gamma_top counter deal depth idx =
     for d = 1 to depth do
         if d land 3 = 0
             then ( (* if d mod 8 = 0 then List.iter TTHashtbl.clear tower; *)
-                 reset_suit_ordering ();
+                 for player = 0 to 3 do reset_suit_ordering player done;
                  let (new_middle, new_variation) =
                         evaluate_deal_gamma d counter tower deal d !middle
                  in (clean_tt_tower tower (if new_middle > !middle then (<=) else (>=)) !middle;
