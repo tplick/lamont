@@ -61,7 +61,10 @@ let rec process_args next_arg =
     match next_arg () with
         | "-perm" -> permutation := permutations.(int_of_string (next_arg ()));
                      process_args next_arg
-        | "-order" -> default_ordering := Array.to_list permutations.(int_of_string (next_arg ()));
+        | "-order" -> let idx = int_of_string (next_arg ()) in
+                      if idx >= 0 then
+                          (default_ordering := Array.to_list permutations.(idx);
+                           leave_ordering_alone := true);
                       process_args next_arg
         | "-bench" -> let limit = int_of_string (next_arg ())
                       in run_benchmark limit

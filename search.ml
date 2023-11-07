@@ -372,6 +372,7 @@ let count_top_tricks_in_hand deal =
 let recommendation_table = Hashtbl.create 10000
 let suit_ordering = Array.make 4 all_suits
 let default_ordering = ref all_suits
+let leave_ordering_alone = ref false
 
 let set_default_ordering deal0 =
     let deal = ref deal0 in
@@ -990,7 +991,7 @@ let clean_tt_tower tower comparison new_middle =
 
 let evaluate_deal_gamma_top counter deal depth idx =
     Hashtbl.clear recommendation_table;
-    set_default_ordering deal;
+    if not !leave_ordering_alone then set_default_ordering deal;
     let middle = ref 0 and variation = ref [] and
         tower = make_trans_table_tower () and
         ledger = ref [] in
