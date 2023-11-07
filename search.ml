@@ -382,7 +382,7 @@ let set_default_ordering deal0 =
         List.iter (fun succ ->
             let idx = match get_last_play succ with Some (Card (suit, _)) -> Obj.magic suit | None -> -1 in
             tallies.(idx) <- tallies.(idx) + 1)
-            (successors_of_deal_without_equals !deal);
+            (successors_of_deal !deal);
         for s = 0 to 3 do
             whole_tallies.(s) <- whole_tallies.(s) * tallies.(s)
         done;
