@@ -989,21 +989,34 @@ let clean_tt_tower tower comparison new_middle =
             tt)
         tower
 
+
+
+let rec remove_duplicates = function
+    | [] -> []
+    | x :: xs -> x :: remove_duplicates (List.filter ((<>) x) xs)
+
+let set_ordering_from_variation variation =
+    let suits = List.map suit_of_card variation in
+    let ordering = remove_duplicates suits in
+    Array.fill suit_ordering 0 4 (remove_duplicates @@ suit_ordering.(0) @ List.rev ordering)
+
 let evaluate_deal_gamma_top counter deal depth idx =
     Hashtbl.clear recommendation_table;
     if not !leave_ordering_alone then set_default_ordering deal;
+    Array.fill suit_ordering 0 4 !default_ordering;
     let middle = ref 0 and variation = ref [] and
         tower = make_trans_table_tower () and
         ledger = ref [] in
     for d = 1 to depth do
         if d land 3 = 0
             then ( (* if d mod 8 = 0 then List.iter TTHashtbl.clear tower; *)
-                 for player = 0 to 3 do reset_suit_ordering player done;
+                 (* for player = 0 to 3 do reset_suit_ordering player done; *)
                  let (new_middle, new_variation) =
                         evaluate_deal_gamma d counter tower deal d !middle
                  in (clean_tt_tower tower (if new_middle > !middle then (<=) else (>=)) !middle;
                      middle := new_middle; variation := new_variation; ledger := new_middle :: !ledger;
-                     Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (Hashtbl.length recommendation_table)))
+                     Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (Hashtbl.length recommendation_table);
+                     set_ordering_from_variation new_variation))
     done;
     Printf.printf "#%d: " (idx);
     print_ledger true @@ List.rev !ledger;
