@@ -111,6 +111,9 @@ let get_packed_hand_of_other_side (Deal d) =
           List.nth d.d_hands ((d.d_to_move+3) land 3) with
         | PackedHand h1, PackedHand h2 -> PackedHand (h1 lor h2)
 
+let get_packed_hand_of_next_player (Deal d) =
+    List.nth d.d_hands ((d.d_to_move + 1) land 3)
+
 let can_side_win_next_trick (Deal d as deal) =
     let (PackedHand my_cards) = get_packed_hand_to_move deal and
         (PackedHand our_cards) = get_packed_hand_of_current_side deal and
@@ -121,16 +124,31 @@ let can_side_win_next_trick (Deal d as deal) =
             ((our_cards lsr shift) land 8191 > (their_cards lsr shift) land 8191))
         [0; 13; 26; 39]
 
+let get_highest_bit field =
+    let rec get_highest_bit' field acc =
+        if field = 1 then acc else
+        if field land lnot 255 <> 0 then get_highest_bit' (field lsr 8) (acc + 8) else
+        get_highest_bit' (field lsr 1) (acc + 1)
+    in
+    if field = 0
+        then None
+        else Some (get_highest_bit' field 0)
+
+let highest_card_in_suit_packed suit their_cards lead_option =
+    let PackedHand card_mask = their_cards in
+    let highest_in_hand = (card_from_index_option @@ get_highest_bit (card_mask land mask_for_suit suit)) in
+    max highest_in_hand lead_option
+
 let can_2nd_player_win_next_trick (Deal d as deal) =
     match get_lead deal with
         | None -> raise (Failure "impossible")
         | Some (Card (suit, rank_led) as lead)
     ->
-    let our_cards = cards_of_current_side deal and
-        their_cards = lead :: cards_of_next_player deal
+    let our_cards = get_packed_hand_of_current_side deal and
+        their_cards = get_packed_hand_of_next_player deal
     in
-    match highest_card_in_suit suit our_cards,
-          highest_card_in_suit suit their_cards with
+    match highest_card_in_suit_packed suit our_cards None,
+          highest_card_in_suit_packed suit their_cards (Some lead) with
             | None, None -> false
             | Some _, None -> true
             | None, Some _ -> false
@@ -633,16 +651,6 @@ let get_lowest_bit field =
         then None
         else Some (get_lowest_bit' field 0)
 
-let get_highest_bit field =
-    let rec get_highest_bit' field acc =
-        if field = 1 then acc else
-        if field land lnot 255 <> 0 then get_highest_bit' (field lsr 8) (acc + 8) else
-        get_highest_bit' (field lsr 1) (acc + 1)
-    in
-    if field = 0
-        then None
-        else Some (get_highest_bit' field 0)
-
 let without_bit bit_option field =
     match bit_option with
         | Some bit -> field land lnot (1 lsl bit)
@@ -837,7 +845,7 @@ let rec sort_kicked_by_ordering kicked ordering =
         | x :: xs ->
             let a, b = List.partition (fun succ -> match get_last_play succ with Some card when suit_of_card card = x -> true | _ -> false) kicked
             in let c, d = List.partition (fun succ -> not @@ can_2nd_player_win_next_trick succ) a
-            in sort_kicked_by_ordering (c @ d @ b) xs
+            in sort_kicked_by_ordering b xs @ (c @ d)
 
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;

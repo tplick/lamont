@@ -8,6 +8,13 @@ let rank_of_card (Card (_, rank)) = rank
 let index_of_card (Card (suit, rank)) =
     13 * (Obj.magic suit) + (Obj.magic rank)
 
+let card_from_index_option = function
+    | None -> None
+    | Some idx -> Some (Card (Obj.magic (idx / 13), Obj.magic (idx mod 13)))
+
+let mask_for_suit suit =
+    8191 lsl (13 * Obj.magic suit)
+
 
 let all_suits = [Club; Diamond; Heart; Spade]
 let all_ranks = [R2; R3; R4; R5; R6; R7; R8; R9; R10; RJ; RQ; RK; RA]
