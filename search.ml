@@ -1008,6 +1008,22 @@ let set_ordering_from_variation variation =
     let ordering = remove_duplicates suits in
     Array.fill suit_ordering 0 4 (remove_duplicates @@ suit_ordering.(0) @ List.rev ordering)
 
+let name_of_suit = function
+    | Club -> "Club"
+    | Diamond -> "Diamond"
+    | Heart -> "Heart"
+    | Spade -> "Spade"
+
+let print_tally_of_recommended_suits () =
+    let table = Hashtbl.create 4 in
+    List.iter (fun suit -> Hashtbl.replace table suit 0) all_suits;
+    Hashtbl.iter (fun k v ->
+        let suit = suit_of_card !v in
+        Hashtbl.replace table suit (Hashtbl.find table suit + 1))
+        recommendation_table;
+    List.iter (fun suit -> Printf.printf "%s\t%d\n" (name_of_suit suit) (Hashtbl.find table suit))
+              all_suits
+
 let evaluate_deal_gamma_top counter deal depth idx =
     Hashtbl.clear recommendation_table;
     if not !leave_ordering_alone then set_default_ordering deal;
@@ -1028,5 +1044,6 @@ let evaluate_deal_gamma_top counter deal depth idx =
     done;
     Printf.printf "#%d: " (idx);
     print_ledger true @@ List.rev !ledger;
+    print_tally_of_recommended_suits ();
     (!middle, !variation), !counter
 
