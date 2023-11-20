@@ -1024,6 +1024,22 @@ let print_tally_of_recommended_suits () =
     List.iter (fun suit -> Printf.printf "%s\t%d\n" (name_of_suit suit) (Hashtbl.find table suit))
               all_suits
 
+let number_to_binary n0 idx =
+    let s = ref "" and n = ref n0 in
+    for i = 0 to 51 do
+        s := !s ^ (if i = idx then "*" else string_of_int (!n land 1));
+        n := !n lsr 1
+    done;
+    !s
+
+let report_recommendations () =
+    Hashtbl.iter (fun (PackedHand a, _, _, suit_led, _, _) card_ref ->
+            if suit_led = None then
+                Printf.printf ">>> %s\n" (number_to_binary a (index_of_card !card_ref)))
+        recommendation_table
+
+let report_recs = ref false
+
 let evaluate_deal_gamma_top counter deal depth idx =
     Hashtbl.clear recommendation_table;
     if not !leave_ordering_alone then set_default_ordering deal;
@@ -1045,5 +1061,6 @@ let evaluate_deal_gamma_top counter deal depth idx =
     Printf.printf "#%d: " (idx);
     print_ledger true @@ List.rev !ledger;
     print_tally_of_recommended_suits ();
+    if !report_recs then report_recommendations ();
     (!middle, !variation), !counter
 

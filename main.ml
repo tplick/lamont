@@ -70,6 +70,8 @@ let rec process_args next_arg =
                       in run_benchmark limit
         | "-single" -> let idx = int_of_string (next_arg ())
                       in run_single idx
+        | "-recs" -> report_recs := true;
+                     process_args next_arg
         | _ -> Printf.printf "Bad arguments.\n"
 
 let _ =
