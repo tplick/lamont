@@ -1,4 +1,6 @@
 
+let report_recs = ref false
+
 let immediate_value_of_deal (Deal d) =
     match d.d_to_move, d.d_tricks with
         | 0, (ew, ns) | 2, (ew, ns) -> ew - ns
@@ -847,6 +849,30 @@ let rec sort_kicked_by_ordering kicked ordering =
             in let c, d = List.partition (fun succ -> not @@ can_2nd_player_win_next_trick succ) a
             in sort_kicked_by_ordering b xs @ (c @ d)
 
+let code_for_player player = String.make 1 "WNES".[player]
+
+let code_for_hands packed_hands =
+    let holder_of_card card_idx =
+        (let indices = List.filter (fun player -> let PackedHand ph = List.nth packed_hands player in ph land (1 lsl card_idx) <> 0) [0; 1; 2; 3]
+         in match indices with
+            | x :: xs -> Some x
+            | [] -> None)
+    in
+    let s = ref "" in
+    for idx = 0 to 51 do
+        let holder = holder_of_card idx in
+        s := !s ^ (match holder with Some player -> code_for_player player | None -> "*")
+    done;
+    !s
+
+let report_recommendation (Deal d as deal) depth iv middle recom =
+    Printf.printf ">>> %s %s %d %d %d\n"
+                    (code_for_hands d.d_hands)
+                    (code_for_player d.d_to_move)
+                    depth
+                    (iv - middle)
+                    (index_of_card recom)
+
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
     if depth = 0
@@ -968,7 +994,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     (if depth = topdepth && topdepth >= -36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
-        | x :: _ -> (match recommendation with Some y -> y := x | None -> Hashtbl.replace recommendation_table (make_recom_key deal) (ref x))
+        | x :: _ -> (match recommendation with Some y -> y := x | None -> Hashtbl.replace recommendation_table (make_recom_key deal) (ref x)); if !report_recs && !best_value > middle then report_recommendation deal depth iv middle x
         | [] -> ());
 
     let return_value = (!best_value, !best_variation)
@@ -1032,14 +1058,6 @@ let number_to_binary n0 idx =
     done;
     !s
 
-let report_recommendations () =
-    Hashtbl.iter (fun (PackedHand a, _, _, suit_led, _, _) card_ref ->
-            if suit_led = None then
-                Printf.printf ">>> %s\n" (number_to_binary a (index_of_card !card_ref)))
-        recommendation_table
-
-let report_recs = ref false
-
 let evaluate_deal_gamma_top counter deal depth idx =
     Hashtbl.clear recommendation_table;
     if not !leave_ordering_alone then set_default_ordering deal;
@@ -1061,6 +1079,5 @@ let evaluate_deal_gamma_top counter deal depth idx =
     Printf.printf "#%d: " (idx);
     print_ledger true @@ List.rev !ledger;
     print_tally_of_recommended_suits ();
-    if !report_recs then report_recommendations ();
     (!middle, !variation), !counter
 
