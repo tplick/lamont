@@ -72,10 +72,13 @@ let rec process_args next_arg =
                       in run_single idx
         | "-recs" -> report_recs := true;
                      process_args next_arg
+        | "-rechistory" -> report_rec_history := true;
+                           process_args next_arg
         | _ -> Printf.printf "Bad arguments.\n"
 
 let _ =
     let arg_queue = ref (List.tl @@ Array.to_list Sys.argv) in
     let next_arg () = (let arg = List.hd !arg_queue in arg_queue := List.tl !arg_queue; arg) in
-    process_args next_arg
+    process_args next_arg;
+    if !report_rec_history then print_recom_history ()
 

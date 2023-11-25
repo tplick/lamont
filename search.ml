@@ -1,5 +1,6 @@
 
 let report_recs = ref false
+let report_rec_history = ref false
 
 let immediate_value_of_deal (Deal d) =
     match d.d_to_move, d.d_tricks with
@@ -390,6 +391,7 @@ let count_top_tricks_in_hand deal =
         all_suit_masks
 
 let recommendation_table = Hashtbl.create 10000
+let recommendation_history = Hashtbl.create 10000
 let suit_ordering = Array.make 4 all_suits
 let default_ordering = ref all_suits
 let leave_ordering_alone = ref false
@@ -873,6 +875,37 @@ let report_recommendation (Deal d as deal) depth iv middle recom =
                     (iv - middle)
                     (index_of_card recom)
 
+let add_recom_to_history deal recom =
+    let list_ref =
+        (match Hashtbl.find_opt recommendation_history (make_recom_key deal) with
+            | Some x -> x
+            | None -> let y = ref [] in Hashtbl.replace recommendation_history (make_recom_key deal) y; y)
+    in list_ref := recom :: !list_ref
+
+let string_of_suit suit =
+    String.sub all_suit_string (3 * Obj.magic suit) 3
+
+let string_of_hand ph =
+    let s = ref "" in
+    List.iter (fun card ->
+                    s := !s ^ " " ^ string_of_card card)
+              (match unpack_hand ph with Hand cards -> cards);
+    !s
+
+let print_recom_history () =
+    Hashtbl.iter (fun (ph, partner_bit, ccw_opt, lead_opt, tcw, player) card_list_ref ->
+      if lead_opt = None then (
+        Printf.printf "@@@ (%s, %s, %s, %s, %s, %s) ->"
+            (string_of_hand ph)
+            (match card_from_index_option partner_bit with Some card -> (string_of_card card) | None -> "None")
+            (match ccw_opt with Some card -> (string_of_card card) | None -> "None")
+            (match lead_opt with Some lead -> string_of_suit lead | None -> "None")
+            (if tcw then "true" else "false")
+            (String.make 1 "WNES".[player]);
+        List.iter (fun card -> Printf.printf " %s" (string_of_card card)) !card_list_ref;
+        Printf.printf "\n"))
+      recommendation_history
+
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
     if depth = 0
@@ -994,7 +1027,9 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     (if depth = topdepth && topdepth >= -36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
-        | x :: _ -> (match recommendation with Some y -> y := x | None -> Hashtbl.replace recommendation_table (make_recom_key deal) (ref x)); if !report_recs && !best_value > middle then report_recommendation deal depth iv middle x
+        | x :: _ -> (match recommendation with Some y -> y := x | None -> Hashtbl.replace recommendation_table (make_recom_key deal) (ref x));
+                    if !report_recs && !best_value > middle then report_recommendation deal depth iv middle x;
+                    if !report_rec_history && !best_value > middle then add_recom_to_history deal x
         | [] -> ());
 
     let return_value = (!best_value, !best_variation)
