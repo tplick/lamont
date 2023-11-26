@@ -867,7 +867,7 @@ let code_for_hands packed_hands =
     done;
     !s
 
-let report_recommendation (Deal d as deal) depth iv middle recom =
+let report_recommendation (Deal d) depth iv middle recom =
     Printf.printf ">>> %s %s %d %d %d\n"
                     (code_for_hands d.d_hands)
                     (code_for_player d.d_to_move)
