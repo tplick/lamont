@@ -1113,6 +1113,6 @@ let evaluate_deal_gamma_top counter deal depth idx =
     done;
     Printf.printf "#%d: " (idx);
     print_ledger true @@ List.rev !ledger;
-    print_tally_of_recommended_suits ();
+    (* print_tally_of_recommended_suits (); *)
     (!middle, !variation), !counter
 
