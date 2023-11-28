@@ -906,6 +906,36 @@ let print_recom_history () =
         Printf.printf "\n"))
       recommendation_history
 
+let symmetric_tricks_for_opponents_in_suit (Deal d as deal) suit_mask =
+    let PackedHand opp1 = List.nth d.d_hands (d.d_to_move lxor 1) and
+        PackedHand opp2 = List.nth d.d_hands (d.d_to_move lxor 3) and
+        PackedHand ours = get_packed_hand_of_current_side deal
+    in
+    if opp1 land suit_mask <> 0 &&
+       opp2 land suit_mask <> 0 &&
+       (opp1 lor opp2) land suit_mask > ours land suit_mask
+
+       then (* at least 1 *)
+           if count_bits (opp1 land suit_mask) >= 3 &&
+              count_bits (opp2 land suit_mask) >= 3 &&
+              without_highest_bit (without_highest_bit ((opp1 lor opp2) land suit_mask)) > ours land suit_mask
+                then 3
+                else
+           if count_bits (opp1 land suit_mask) >= 2 &&
+              count_bits (opp2 land suit_mask) >= 2 &&
+              without_highest_bit ((opp1 lor opp2) land suit_mask) > ours land suit_mask
+                then 2
+                else 1
+       else 0
+
+let tricks_to_be_lost_immediately deal =
+    if can_side_win_next_trick deal
+        then 0
+        else
+    List.fold_left (fun acc suit_mask -> acc + symmetric_tricks_for_opponents_in_suit deal suit_mask)
+        0
+        all_suit_masks
+
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
     if depth = 0
@@ -983,6 +1013,15 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                           middle
         then (middle + 1, [])
         else
+
+(*
+    if depth land 3 = 0 &&
+                           (let capped = min (tricks_to_be_lost_immediately deal) (depth / 4)
+                            in let remainder = (depth / 4) - capped
+                            in iv - capped + remainder < middle)
+        then (middle - 1, [])
+        else
+*)
 
     let best_value = ref (-1000) and
         best_variation = ref [] and
