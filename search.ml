@@ -936,6 +936,48 @@ let tricks_to_be_lost_immediately deal =
         0
         all_suit_masks
 
+let does_current_side_hold_highest_card_in_suit deal suit =
+    let PackedHand ours = get_packed_hand_of_current_side deal and
+        PackedHand theirs = get_packed_hand_of_other_side deal and
+        suit_mask = mask_for_suit suit
+    in ours land suit_mask > theirs land suit_mask
+
+let rec fill_in_below n =
+    if n = 0
+        then 0
+        else n lor fill_in_below (n lsr 1)
+
+let is_highest_card_simply_guarded deal suit =
+    let PackedHand ours = get_packed_hand_of_current_side deal and
+        PackedHand theirs = get_packed_hand_of_other_side deal and
+        PackedHand opp1 = get_first_opponents_packed_hand deal and
+        PackedHand opp2 = get_second_opponents_packed_hand deal and
+        suit_mask = mask_for_suit suit
+    in let
+        opp1_bits = count_bits (opp1 land suit_mask) and
+        opp2_bits = count_bits (opp2 land suit_mask)
+    in
+        opp1_bits >= 1 && opp2_bits >= 1 && max opp1_bits opp2_bits >= 2 &&
+        count_bits ((theirs land suit_mask) land lnot
+                    (fill_in_below (without_highest_bit (ours land suit_mask)))) >= 2
+
+let number_of_highest_cards_held_by_current_side deal =
+    List.fold_left (fun acc suit -> acc +
+                        if does_current_side_hold_highest_card_in_suit deal suit
+                            then 1
+                            else 0)
+                   0
+                   all_suits
+
+let tricks_before_losing_one deal =
+    if is_every_suit_in_packed_hand (get_packed_hand_to_move deal) &&
+       is_every_suit_in_packed_hand (get_partners_packed_hand deal) &&
+            List.for_all (fun suit -> (not @@ does_current_side_hold_highest_card_in_suit deal suit) ||
+                                      (is_highest_card_simply_guarded deal suit))
+                         all_suits
+        then Some (number_of_highest_cards_held_by_current_side deal)
+        else None
+
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
     if depth = 0
@@ -1013,7 +1055,6 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                           middle
         then (middle + 1, [])
         else
-
 (*
     if depth land 3 = 0 &&
                            (let capped = min (tricks_to_be_lost_immediately deal) (depth / 4)
@@ -1021,8 +1062,14 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                             in iv - capped + remainder < middle)
         then (middle - 1, [])
         else
-*)
 
+    if depth land 3 = 0 && iv + (depth / 4) = middle + 1 &&
+                           (match tricks_before_losing_one deal with
+                                | Some value -> value < depth / 4
+                                | None -> false)
+        then (middle - 1, [])
+        else
+*)
     let best_value = ref (-1000) and
         best_variation = ref [] and
         aos = Card (Spade, RA) and
