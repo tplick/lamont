@@ -117,6 +117,9 @@ let get_packed_hand_of_other_side (Deal d) =
 let get_packed_hand_of_next_player (Deal d) =
     List.nth d.d_hands ((d.d_to_move + 1) land 3)
 
+let get_packed_hand_of_previous_player (Deal d) =
+    List.nth d.d_hands ((d.d_to_move + 3) land 3)
+
 let can_side_win_next_trick (Deal d as deal) =
     let (PackedHand my_cards) = get_packed_hand_to_move deal and
         (PackedHand our_cards) = get_packed_hand_of_current_side deal and
@@ -697,6 +700,61 @@ let can_play_sequential_trick_in_suit mine_all partners_all opp1_all opp2_all su
         else
     `Neither
 
+(*
+let does_hand_hold_akq field =
+    match get_highest_bit field with
+        | Some bit ->
+            let mask = 7 * (1 lsl (bit - 2))
+            in field land mask = mask
+        | None -> false
+
+let does_hand_hold_aq field =
+    match get_highest_bit field with
+        | Some bit ->
+            let mask_screen = 7 * (1 lsl (bit - 2)) and
+                mask_target = 5 * (1 lsl (bit - 2))
+            in field land mask_screen = mask_target
+        | None -> false
+
+let is_akq_finesse_in_order (first_, second_, third_, fourth_) suit_mask =
+    let pop_mask = (first_ lor second_ lor third_ lor fourth_) land suit_mask
+    in let first, second, third =
+            (make_canonical_mask (fold_mask pop_mask) (fold_mask (first_ land suit_mask)),
+             make_canonical_mask (fold_mask pop_mask) (fold_mask (second_ land suit_mask)),
+             make_canonical_mask (fold_mask pop_mask) (fold_mask (third_ land suit_mask)))
+    in  first <> 0 &&
+        does_hand_hold_aq third &&
+        does_hand_hold_akq (second lor third) &&
+        count_bits second >= 2
+*)
+
+let rec get_nth_highest_bit field n =
+    match n with
+        | _ when n < 1 -> raise (Failure "bad n passed to get_nth_highest_bit")
+        | 1 -> get_highest_bit field
+        | _ -> (match get_highest_bit field with
+                    | Some bit -> get_nth_highest_bit (field land lnot (1 lsl bit)) (n - 1)
+                    | None -> None)
+
+let is_akq_finesse_in_order (first_0, second_0, third_0, fourth_0) suit_mask_0 =
+    let first, second, third, fourth =
+        (first_0 land suit_mask_0,
+         second_0 land suit_mask_0,
+         third_0 land suit_mask_0,
+         fourth_0 land suit_mask_0) in
+    let suit_mask = suit_mask_0 land (first lor second lor third lor fourth) in
+    first <> 0 &&
+    without_lowest_bit second <> 0 &&
+    without_lowest_bit third <> 0 &&
+    get_highest_bit suit_mask = get_highest_bit third &&
+    get_nth_highest_bit suit_mask 2 = get_highest_bit second &&
+    get_nth_highest_bit suit_mask 3 = get_nth_highest_bit third 2
+
+let play_second_highest field suit_mask =
+    match get_nth_highest_bit (field land suit_mask) 2 with
+        | Some bit -> field land lnot (1 lsl bit)
+        | None -> field
+
 let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mask_list =
     match suit_mask_list with
         | [] -> 0
@@ -708,10 +766,15 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mas
                                                         (play_lowest_if_any opp2 suit_mask)
                                                         full_mask_list
                                                         full_mask_list
-                | `Partner -> 1 + count_sequential_tricks' (play_highest partners suit_mask)
+                | `Partner -> let can_finesse = is_akq_finesse_in_order
+                                                    (mine, opp1, partners, opp2)
+                                                    suit_mask in
+                              1 + count_sequential_tricks' (if can_finesse
+                                                                then play_second_highest partners suit_mask
+                                                                else play_highest partners suit_mask)
                                                            (play_lowest_or_any mine suit_mask)
-                                                           (play_lowest_if_any opp1 suit_mask)
                                                            (play_lowest_if_any opp2 suit_mask)
+                                                           (play_lowest_if_any opp1 suit_mask)
                                                            full_mask_list
                                                            full_mask_list
                 | `Neither -> count_sequential_tricks' mine partners opp1 opp2
@@ -721,8 +784,8 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mas
 let count_sequential_tricks deal suit_mask_list =
     let PackedHand mine = get_packed_hand_to_move deal and
         PackedHand partners = get_partners_packed_hand deal and
-        PackedHand opp1 = get_first_opponents_packed_hand deal and
-        PackedHand opp2 = get_second_opponents_packed_hand deal
+        PackedHand opp1 = get_packed_hand_of_next_player deal and
+        PackedHand opp2 = get_packed_hand_of_previous_player deal
     in
     count_sequential_tricks' mine partners opp1 opp2 suit_mask_list suit_mask_list
 
@@ -762,8 +825,8 @@ let count_sequential_tricks_for_2nd deal suit_mask_list =
             (partners land suit_mask) > (opp1 land suit_mask) && (partners land suit_mask) > (1 lsl index_of_card card_led)
         then 1 + count_sequential_tricks' (play_highest partners suit_mask)
                                           (play_lowest_or_any mine suit_mask)
-                                          (play_lowest_if_any opp1 suit_mask)
                                           opp2
+                                          (play_lowest_if_any opp1 suit_mask)
                                           suit_mask_list
                                           suit_mask_list
         else
