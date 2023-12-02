@@ -802,6 +802,15 @@ let get_next_opponents_packed_hand (Deal d) =
 let get_previous_opponents_packed_hand (Deal d) =
     List.nth d.d_hands ((d.d_to_move + 3) land 3)
 
+let rec play_lowest_exceeding mine others suit_mask previous_tries =
+    match get_lowest_bit ((mine land lnot previous_tries) land suit_mask) with
+        | Some bit ->
+            if (1 lsl bit) > (others land suit_mask)
+                then mine land lnot (1 lsl bit)
+                else play_lowest_exceeding mine others suit_mask (previous_tries lor (1 lsl bit))
+        | None ->
+            raise (Failure "play_lowest_exceeding")
+
 let count_sequential_tricks_for_2nd deal suit_mask_list =
     let PackedHand mine = get_packed_hand_to_move deal and
         PackedHand partners = get_partners_packed_hand deal and
@@ -814,7 +823,11 @@ let count_sequential_tricks_for_2nd deal suit_mask_list =
     in
     if (mine land suit_mask) > 0 && (mine land suit_mask) > (partners land suit_mask) &&
             (mine land suit_mask) > (opp1 land suit_mask) && (mine land suit_mask) > (1 lsl index_of_card card_led)
-        then 1 + count_sequential_tricks' (play_highest mine suit_mask)
+        then 1 + count_sequential_tricks' (play_lowest_exceeding
+                                                mine
+                                                (partners lor opp1 lor (1 lsl index_of_card card_led))
+                                                suit_mask
+                                                0)
                                           (play_lowest_or_any partners suit_mask)
                                           (play_lowest_if_any opp1 suit_mask)
                                           opp2
@@ -823,7 +836,11 @@ let count_sequential_tricks_for_2nd deal suit_mask_list =
         else
     if (mine land suit_mask) > 0 && (partners land suit_mask) > (mine land suit_mask) &&
             (partners land suit_mask) > (opp1 land suit_mask) && (partners land suit_mask) > (1 lsl index_of_card card_led)
-        then 1 + count_sequential_tricks' (play_highest partners suit_mask)
+        then 1 + count_sequential_tricks' (play_lowest_exceeding
+                                                partners
+                                                (mine lor opp1 lor (1 lsl index_of_card card_led))
+                                                suit_mask
+                                                0)
                                           (play_lowest_or_any mine suit_mask)
                                           opp2
                                           (play_lowest_if_any opp1 suit_mask)
