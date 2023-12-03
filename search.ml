@@ -687,11 +687,26 @@ let play_lowest_or_any field suit_mask =
         | Some bit -> without_bit (Some bit) field
         | None -> without_bit (get_throwaway_bit field) field
 
+let count_bits_alt x =
+    let rec count_bits_alt' acc x =
+                if x = 0
+                    then acc
+                    else count_bits_alt' (acc + 1) (without_lowest_bit x)
+    in count_bits_alt' 0 x
+
 let can_play_sequential_trick_in_suit mine_all partners_all opp1_all opp2_all suit_mask =
     let mine = mine_all land suit_mask and
         partners = partners_all land suit_mask and
         opp1 = opp1_all land suit_mask and
         opp2 = opp2_all land suit_mask in
+    if without_lowest_bit mine > 0 && count_bits_alt mine < count_bits_alt partners &&
+                mine > (opp1 lor opp2) && mine > lowest_bit_as_field partners
+        then `Mine
+        else
+    if without_lowest_bit partners > 0 && count_bits_alt partners < count_bits_alt mine &&
+                partners > (opp1 lor opp2) && partners > lowest_bit_as_field mine
+        then `Partner
+        else
     if mine > 0 && mine > partners && mine > (opp1 lor opp2)
         then `Mine
         else
@@ -744,6 +759,7 @@ let is_akq_finesse_in_order (first_0, second_0, third_0, fourth_0) suit_mask_0 =
          fourth_0 land suit_mask_0) in
     let suit_mask = suit_mask_0 land (first lor second lor third lor fourth) in
     first <> 0 &&
+    third > (first lor second lor fourth) &&
     without_lowest_bit second <> 0 &&
     without_lowest_bit third <> 0 &&
     get_highest_bit suit_mask = get_highest_bit third &&
