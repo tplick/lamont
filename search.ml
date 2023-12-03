@@ -1,6 +1,7 @@
 
 let report_recs = ref false
 let report_rec_history = ref false
+let show_missed_runs = ref false
 
 let immediate_value_of_deal (Deal d) =
     match d.d_to_move, d.d_tricks with
@@ -1291,7 +1292,9 @@ let evaluate_deal_gamma_top counter deal depth idx =
                  in (clean_tt_tower tower (if new_middle > !middle then (<=) else (>=)) !middle;
                      middle := new_middle; variation := new_variation; ledger := new_middle :: !ledger;
                      Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (Hashtbl.length recommendation_table);
-                     set_ordering_from_variation new_variation))
+                     set_ordering_from_variation new_variation;
+                     if !show_missed_runs && new_middle = d / 4 && !counter > new_middle
+                            then Printf.printf "@@@\n%!"))
     done;
     Printf.printf "#%d: " (idx);
     print_ledger true @@ List.rev !ledger;

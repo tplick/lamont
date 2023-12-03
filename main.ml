@@ -74,6 +74,8 @@ let rec process_args next_arg =
                      process_args next_arg
         | "-rechistory" -> report_rec_history := true;
                            process_args next_arg
+        | "-show-runs" -> show_missed_runs := true;
+                          process_args next_arg
         | _ -> Printf.printf "Bad arguments.\n"
 
 let _ =
