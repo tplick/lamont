@@ -752,13 +752,22 @@ let rec get_nth_highest_bit field n =
                     | Some bit -> get_nth_highest_bit (field land lnot (1 lsl bit)) (n - 1)
                     | None -> None)
 
+let rec remove_duplicate_front_bits field =
+    match get_highest_bit field with
+        | Some bit when bit > 0 ->
+            if field land (1 lsl (bit - 1)) > 0
+                then remove_duplicate_front_bits (field land lnot (1 lsl bit))
+                else field
+        | _ -> field
+
 let is_akq_finesse_in_order (first_0, second_0, third_0, fourth_0) suit_mask_0 =
     let first, second, third, fourth =
-        (first_0 land suit_mask_0,
+        (lowest_bit_as_field (first_0 land suit_mask_0),
          second_0 land suit_mask_0,
-         third_0 land suit_mask_0,
+         remove_duplicate_front_bits (third_0 land suit_mask_0),
          fourth_0 land suit_mask_0) in
     let suit_mask = suit_mask_0 land (first lor second lor third lor fourth) in
+  if
     first <> 0 &&
     third > (first lor second lor fourth) &&
     without_lowest_bit second <> 0 &&
@@ -766,11 +775,16 @@ let is_akq_finesse_in_order (first_0, second_0, third_0, fourth_0) suit_mask_0 =
     get_highest_bit suit_mask = get_highest_bit third &&
     get_nth_highest_bit suit_mask 2 = get_highest_bit second &&
     get_nth_highest_bit suit_mask 3 = get_nth_highest_bit third 2
+  then get_nth_highest_bit third 2
+  else None
 
 let play_second_highest field suit_mask =
     match get_nth_highest_bit (field land suit_mask) 2 with
         | Some bit -> field land lnot (1 lsl bit)
         | None -> field
+
+let play_specific_bit field bit =
+    field land lnot (1 lsl bit)
 
 let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mask_list =
     match suit_mask_list with
@@ -786,9 +800,9 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mas
                 | `Partner -> let can_finesse = is_akq_finesse_in_order
                                                     (mine, opp1, partners, opp2)
                                                     suit_mask in
-                              1 + count_sequential_tricks' (if can_finesse
-                                                                then play_second_highest partners suit_mask
-                                                                else play_highest partners suit_mask)
+                              1 + count_sequential_tricks' (match can_finesse with
+                                                                | Some bit -> play_specific_bit partners bit
+                                                                | None -> play_highest partners suit_mask)
                                                            (play_lowest_or_any mine suit_mask)
                                                            (play_lowest_if_any opp2 suit_mask)
                                                            (play_lowest_if_any opp1 suit_mask)
