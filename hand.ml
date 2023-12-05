@@ -133,6 +133,17 @@ let new_deal () =
         d_deal_for_hash = None
     }
 
+let new_deal_with_hands hands =
+    Deal {
+        d_hands = pack_hands hands;
+        d_to_move = 0;
+        d_played = [];
+        d_tricks = (0, 0);
+        d_turns = 0;
+        d_last_play = None;
+        d_deal_for_hash = None
+    }
+
 
 let rec get_lead (Deal deal) =
     get_lead' deal.d_played

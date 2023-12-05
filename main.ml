@@ -57,6 +57,59 @@ let run_single idx =
     done;
     Printf.printf "Saw %d nodes.\n" !counter
 
+let all_cards_with_suit suit = List.filter (fun card -> suit_of_card card = suit) new_deck
+
+let easiest_deal = new_deal_with_hands
+    [Hand (all_cards_with_suit Club);
+     Hand (all_cards_with_suit Diamond);
+     Hand (all_cards_with_suit Heart);
+     Hand (all_cards_with_suit Spade)]
+
+let hard_deal_1 =
+    let diagonal_cards n = List.filter (fun (Card (suit, rank)) ->
+                                            (Obj.magic rank - Obj.magic suit) land 3 = n)
+                                       new_deck in
+    new_deal_with_hands
+        [Hand (diagonal_cards 0);
+         Hand (diagonal_cards 1);
+         Hand (diagonal_cards 2);
+         Hand (diagonal_cards 3)]
+
+let hard_deal_2 =
+    let diagonal_cards n = List.filter (fun (Card (suit, rank)) ->
+                                            (Obj.magic rank + Obj.magic suit) land 3 = n)
+                                       new_deck in
+    new_deal_with_hands
+        [Hand (diagonal_cards 0);
+         Hand (diagonal_cards 1);
+         Hand (diagonal_cards 2);
+         Hand (diagonal_cards 3)]
+
+let hardest_deal =
+    let shift_suit suit n : suit =
+        Obj.magic @@ (Obj.magic suit + n) land 3
+    in let shift cards n =
+        List.map (fun (Card (suit, rank)) ->
+                    Card (shift_suit suit n, rank)) cards
+    and first_hand = [
+        Card (Club, R2); Card (Diamond, R3); Card (Heart, R4);
+        Card (Club, R5); Card (Diamond, R6); Card (Heart, R7);
+        Card (Club, R8); Card (Diamond, R9); Card (Heart, R10);
+        Card (Club, RJ); Card (Diamond, RQ); Card (Heart, RK);
+        Card (Club, RA)
+    ]
+    in new_deal_with_hands
+        [Hand first_hand;
+         Hand (shift first_hand 1);
+         Hand (shift first_hand 2);
+         Hand (shift first_hand 3)]
+
+let run_constructed_deal d =
+    let counter = ref 0 in
+    analyze_deal (permute_deal !permutation d) counter 0;
+    Printf.printf "\n";
+    Printf.printf "Saw %d nodes.\n" !counter
+
 let rec process_args next_arg =
     match next_arg () with
         | "-perm" -> permutation := permutations.(int_of_string (next_arg ()));
@@ -76,6 +129,10 @@ let rec process_args next_arg =
                            process_args next_arg
         | "-show-runs" -> show_missed_runs := true;
                           process_args next_arg
+        | "-easiest" -> run_constructed_deal easiest_deal
+        | "-hard1" -> run_constructed_deal hard_deal_1
+        | "-hard2" -> run_constructed_deal hard_deal_2
+        | "-hardest" -> run_constructed_deal hardest_deal
         | _ -> Printf.printf "Bad arguments.\n"
 
 let _ =
