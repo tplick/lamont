@@ -800,14 +800,30 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mas
                 | `Partner -> let can_finesse = is_akq_finesse_in_order
                                                     (mine, opp1, partners, opp2)
                                                     suit_mask in
-                              1 + count_sequential_tricks' (match can_finesse with
-                                                                | Some bit -> play_specific_bit partners bit
-                                                                | None -> play_highest partners suit_mask)
+                      (match can_finesse with
+                          | None ->
+                              1 + count_sequential_tricks' (play_highest partners suit_mask)
                                                            (play_lowest_or_any mine suit_mask)
                                                            (play_lowest_if_any opp2 suit_mask)
                                                            (play_lowest_if_any opp1 suit_mask)
                                                            full_mask_list
                                                            full_mask_list
+                          | Some bit -> min
+                                    (* first, if opp1 plays low: *)
+                             (1 + count_sequential_tricks' (play_specific_bit partners bit)
+                                                           (play_lowest_or_any mine suit_mask)
+                                                           (play_lowest_if_any opp2 suit_mask)
+                                                           (play_lowest_if_any opp1 suit_mask)
+                                                           full_mask_list
+                                                           full_mask_list)
+                                    (* second, if opp1 plays high: *)
+                             (1 + count_sequential_tricks' (play_highest partners suit_mask)
+                                                           (play_lowest_or_any mine suit_mask)
+                                                           (play_lowest_if_any opp2 suit_mask)
+                                                           (play_highest opp1 suit_mask)
+                                                           full_mask_list
+                                                           full_mask_list)
+                      )
                 | `Neither -> count_sequential_tricks' mine partners opp1 opp2
                                                        suit_masks_rest
                                                        full_mask_list
