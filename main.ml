@@ -111,7 +111,8 @@ let run_constructed_deal d =
     Printf.printf "Saw %d nodes.\n" !counter
 
 let rec process_args next_arg =
-    match next_arg () with
+    let next () = process_args next_arg
+    in match next_arg () with
         | "-perm" -> permutation := permutations.(int_of_string (next_arg ()));
                      process_args next_arg
         | "-order" -> let idx = int_of_string (next_arg ()) in
@@ -133,6 +134,8 @@ let rec process_args next_arg =
         | "-hard1" -> run_constructed_deal hard_deal_1
         | "-hard2" -> run_constructed_deal hard_deal_2
         | "-hardest" -> run_constructed_deal hardest_deal
+        | "-verify" -> opt := false;
+                       next ()
         | _ -> Printf.printf "Bad arguments.\n"
 
 let _ =

@@ -2,6 +2,7 @@
 let report_recs = ref false
 let report_rec_history = ref false
 let show_missed_runs = ref false
+let opt = ref true
 
 let immediate_value_of_deal (Deal d) =
     match d.d_to_move, d.d_tricks with
@@ -490,6 +491,9 @@ let canonicalize_hand hand pop_mask =
        make_mask hand pop_mask 39
 
 let make_deal_canonical (Deal d as deal) =
+    if not !opt
+        then deal
+        else
     let hands = d.d_hands and
         (PackedHand pop_mask) = all_remaining_packed deal in
     let canon_hands = List.map (fun (PackedHand hand) -> PackedHand (canonicalize_hand hand pop_mask)) hands in
@@ -1134,8 +1138,8 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
         then (middle + 1, [])
         else
 
-    if depth land 3 = 3 && iv - ((depth + 1) / 4) = middle - 1
-                        && can_2nd_player_win_next_trick deal
+    if !opt && depth land 3 = 3 && iv - ((depth + 1) / 4) = middle - 1
+            && can_2nd_player_win_next_trick deal
         then (middle + 1, [])
         else
 
@@ -1151,35 +1155,35 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
         else
 *)
 
-    if depth land 3 = 0 && can_return_early iv (depth / 4) (max (count_top_tricks_in_both_hands deal)
-                               (count_ace_tricks_between_hands deal)) middle
+    if !opt && depth land 3 = 0 && can_return_early iv (depth / 4) (max (count_top_tricks_in_both_hands deal)
+                                  (count_ace_tricks_between_hands deal)) middle
         then (middle + 1, [])
         else
 
-    if depth land 3 = 0 && can_return_early iv (depth / 4)
-                          (count_iter_tricks deal) middle
+    if !opt && depth land 3 = 0 && can_return_early iv (depth / 4)
+                                  (count_iter_tricks deal) middle
         then (middle + 1, [])
         else
 
-    if depth land 3 = 0 && can_return_early iv (depth / 4)
-                          (count_top_tricks_in_hand deal) middle
+    if !opt && depth land 3 = 0 && can_return_early iv (depth / 4)
+                                  (count_top_tricks_in_hand deal) middle
         then (middle + 1, [])
         else
 
-    if depth land 3 = 0 && can_return_early iv (depth / 4)
+    if !opt && depth land 3 = 0 && can_return_early iv (depth / 4)
                           (count_long_suit_tricks_in_hand deal) middle
         then (middle + 1, [])
         else
 
-    if depth land 3 = 0 && can_return_early iv (depth / 4)
-                          (count_sequential_tricks_top deal)
-                          middle
+    if !opt && depth land 3 = 0 && can_return_early iv (depth / 4)
+                                  (count_sequential_tricks_top deal)
+                                  middle
         then (middle + 1, [])
         else
 
-    if depth land 3 = 3 && can_return_early iv ((depth+3) / 4)
-                          (count_sequential_tricks_for_2nd_top deal)
-                          middle
+    if !opt && depth land 3 = 3 && can_return_early iv ((depth+3) / 4)
+                                  (count_sequential_tricks_for_2nd_top deal)
+                                   middle
         then (middle + 1, [])
         else
 (*
@@ -1315,7 +1319,7 @@ let evaluate_deal_gamma_top counter deal depth idx =
         ledger = ref [] in
     for d = 1 to depth do
         if d land 3 = 0
-            then ( (* if d mod 8 = 0 then List.iter TTHashtbl.clear tower; *)
+            then (if not !opt then List.iter TTHashtbl.clear tower;
                  (* for player = 0 to 3 do reset_suit_ordering player done; *)
                  let (new_middle, new_variation) =
                         evaluate_deal_gamma d counter tower deal d !middle
