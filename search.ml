@@ -1229,7 +1229,9 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
             (if !best_value < middle || depth = topdepth
                 then let recom = match recommendation with Some y -> Some !y | None -> None
                 in List.iter (fun succ -> if get_last_play succ <> recom then iter_body succ)
-                (let sorted_successors = (if depth land 3 = 0 then (fun x -> x) else sort_deals_by_last_play) @@ successors_of_deal_without_equals deal in
+                (let raw_successors = successors_of_deal_without_equals deal
+                 in let succs_to_pass =
+                    (let sorted_successors = (if depth land 3 = 0 then (fun x -> x) else sort_deals_by_last_play) @@ raw_successors in
                  match depth land 3 with
                     | 1 -> let (wins, losses) = List.partition (fun succ -> same_sides_in_deals deal succ)
                                                                (List.rev sorted_successors)
@@ -1240,7 +1242,9 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                            in wins @ losses
                     | _ -> (* let pulled, kicked = postpone_double_suits [] [] (List.rev sorted_successors)
                            in *)
-                              (sort_kicked_by_ordering (List.rev sorted_successors) suit_ordering.(d.d_to_move))));
+                              (sort_kicked_by_ordering (List.rev sorted_successors) suit_ordering.(d.d_to_move)))
+                in if not !opt then assert (List.sort compare succs_to_pass = List.sort compare raw_successors);
+                succs_to_pass));
     (if depth = topdepth && topdepth >= -36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
