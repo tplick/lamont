@@ -653,7 +653,7 @@ let get_restricted_partners_packed_hand deal =
 
 
 
-let get_lowest_bit field =
+let get_lowest_bit_old field =
     let rec get_lowest_bit' field acc =
         if field land 1 = 1 then acc else
         if field land 255 = 0 then get_lowest_bit' (field lsr 8) (acc + 8) else
@@ -662,6 +662,17 @@ let get_lowest_bit field =
     if field = 0
         then None
         else Some (get_lowest_bit' field 0)
+
+let lowest_bit_array =
+    let array = Array.make 67 None in
+    for i = 0 to 61 do
+        array.((1 lsl i) mod 67) <- Some i
+    done;
+    array
+
+let get_lowest_bit field =
+    let field_with_bit = field land lnot (field - 1)
+    in lowest_bit_array.(field_with_bit mod 67)
 
 let without_bit bit_option field =
     match bit_option with
@@ -704,6 +715,9 @@ let can_play_sequential_trick_in_suit mine_all partners_all opp1_all opp2_all su
         partners = partners_all land suit_mask and
         opp1 = opp1_all land suit_mask and
         opp2 = opp2_all land suit_mask in
+    if mine lor partners <= opp1 lor opp2
+        then `Neither
+        else
     if without_lowest_bit mine > 0 && count_bits_alt mine < count_bits_alt partners &&
                 mine > (opp1 lor opp2) && mine > lowest_bit_as_field partners
         then `Mine
