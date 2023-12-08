@@ -132,11 +132,18 @@ let can_side_win_next_trick (Deal d as deal) =
             ((our_cards lsr shift) land 8191 > (their_cards lsr shift) land 8191))
         [0; 13; 26; 39]
 
+let highest_bit_array =
+    let array = Array.make 256 (-1) in
+    for i = 1 to 255 do
+        array.(i) <- array.(i / 2) + 1
+    done;
+    array
+
 let get_highest_bit field =
     let rec get_highest_bit' field acc =
         if field = 1 then acc else
         if field land lnot 255 <> 0 then get_highest_bit' (field lsr 8) (acc + 8) else
-        get_highest_bit' (field lsr 1) (acc + 1)
+        highest_bit_array.(field) + acc
     in
     if field = 0
         then None
