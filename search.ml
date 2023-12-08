@@ -928,8 +928,11 @@ let count_sequential_tricks_for_2nd_top deal =
 let pull_from_tt tts succs middle =
     match tts with
         | _ :: tt :: _ ->
+    let any_yet = ref false in
     let a, b = List.partition (fun succ ->
-                    look_up_value_in_tt tt succ middle <> None)
+                    if not !any_yet && look_up_value_in_tt tt succ middle <> None
+                        then (any_yet := true; true)
+                        else false)
                succs
     in a @ b
         | _ -> succs
