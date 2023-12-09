@@ -84,19 +84,27 @@ let pack_hand (Hand h) =
             0
             h)
 
+let lowest_bit_array =
+    let array = Array.make 67 None in
+    for i = 0 to 61 do
+        array.((1 lsl i) mod 67) <- Some i
+    done;
+    array
+
+let get_lowest_bit field =
+    let field_with_bit = field land lnot (field - 1)
+    in lowest_bit_array.(field_with_bit mod 67)
+
 let unpack_hand (PackedHand mask0) =
     let h = ref [] and
-        i = ref 0 and
         mask = ref mask0
     in
-    while !i < 52 do
-        if !mask land 127 = 0
-            then (mask := !mask lsr 6;
-                  i := !i + 6)
-        else (if !mask land 1 > 0
-            then h := new_deck_array.(!i) :: !h);
-        mask := !mask lsr 1;
-        incr i
+    while !mask <> 0 do
+        (match get_lowest_bit !mask with
+            | Some i ->
+                h := new_deck_array.(i) :: !h
+            | None -> raise (Failure "???"));
+        mask := !mask land (!mask - 1)
     done;
     Hand !h
 
