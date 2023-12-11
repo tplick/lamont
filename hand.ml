@@ -95,15 +95,17 @@ let get_lowest_bit field =
     let field_with_bit = field land lnot (field - 1)
     in lowest_bit_array.(field_with_bit mod 67)
 
+let lowest_bit_deck_array =
+    Array.init 8192 (fun i ->
+        let j = fast_lowest_bit_array.(i)
+        in new_deck_array.(j))
+
 let unpack_hand (PackedHand mask0) =
     let h = ref [] and
-        mask = ref mask0
+        mask = ref (mask0 land ((1 lsl 52) - 1))
     in
     while !mask <> 0 do
-        (match get_lowest_bit !mask with
-            | Some i ->
-                h := new_deck_array.(i) :: !h
-            | None -> raise (Failure "???"));
+        h := lowest_bit_deck_array.(fast_lowest_bit_index !mask) :: !h;
         mask := !mask land (!mask - 1)
     done;
     Hand !h
