@@ -464,9 +464,10 @@ let canonical_array =
     array
 
 let make_canonical_mask pop_suit_mask hand_suit_mask =
-    let low = canonical_array.((pop_suit_mask land 127) * 128 + (hand_suit_mask land 127)) and
-        high = canonical_array.((pop_suit_mask lsr 7) * 128 + (hand_suit_mask lsr 7))
+    let low = canonical_array.((pop_suit_mask land 127) lsl 7 + (hand_suit_mask land 127)) and
+        high = canonical_array.(pop_suit_mask land lnot 127 + (hand_suit_mask lsr 7))
     in low + (high lsl bitcount_array.(pop_suit_mask land 127))
+[@@inline]
 
 (*
 let canonical_table =
@@ -486,16 +487,22 @@ let canonical_table =
 *)
 
 let canonicalize_hand hand pop_mask =
-    let make_mask hand' pop_mask' shift =
+    let make_mask_0 hand' pop_mask' =
+        (
+            let hand_suit_mask = (hand' lsr 0) land 8191 and
+                pop_suit_mask = (pop_mask' lsr 0) land 8191 in
+            let canon_suit_mask = make_canonical_mask pop_suit_mask hand_suit_mask in
+            canon_suit_mask) [@@inline]
+    and make_mask hand' pop_mask' shift =
         (
             let hand_suit_mask = (hand' lsr shift) land 8191 and
                 pop_suit_mask = (pop_mask' lsr shift) land 8191 in
             let canon_suit_mask = make_canonical_mask pop_suit_mask hand_suit_mask in
-            canon_suit_mask lsl shift)
-    in make_mask hand pop_mask 0 lor
-       make_mask hand pop_mask 13 lor
-       make_mask hand pop_mask 26 lor
-       make_mask hand pop_mask 39
+            canon_suit_mask)
+    in (make_mask_0 hand pop_mask lsl 0) +
+       (make_mask_0 (hand lsr 13) (pop_mask lsr 13) lsl 13) +
+       (make_mask_0 (hand lsr 26) (pop_mask lsr 26) lsl 26) +
+       (make_mask_0 (hand lsr 39) (pop_mask lsr 39) lsl 39)
 
 let make_deal_canonical (Deal d as deal) =
     if not !opt
