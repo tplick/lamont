@@ -110,6 +110,20 @@ let run_constructed_deal d =
     Printf.printf "\n";
     Printf.printf "Saw %d nodes.\n" !counter
 
+let test_mod_alg n =
+    for i = 1 to n do
+        for j = 0 to 51 do
+            ignore (get_lowest_bit (1 lsl j))
+        done
+    done
+
+let test_fold_alg n =
+    for i = 1 to n do
+        for j = 0 to 51 do
+            ignore (fast_lowest_bit_nonzero (1 lsl j))
+        done
+    done
+
 let rec process_args next_arg =
     let next () = process_args next_arg
     in match next_arg () with
@@ -136,6 +150,8 @@ let rec process_args next_arg =
         | "-hardest" -> run_constructed_deal hardest_deal
         | "-verify" -> opt := false;
                        next ()
+        | "-test-mod" -> test_mod_alg   100000000
+        | "-test-fold" -> test_fold_alg 100000000
         | _ -> Printf.printf "Bad arguments.\n"
 
 let _ =
