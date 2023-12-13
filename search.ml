@@ -1291,7 +1291,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
 let make_trans_table_tower () =
     let tower = ref [] in
     for i = 0 to 52 do
-        tower := (TTHashtbl.create 10000) :: !tower
+        tower := (TTHashtbl.create 100) :: !tower
     done;
     !tower
 
