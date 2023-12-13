@@ -110,10 +110,15 @@ let run_constructed_deal d =
     Printf.printf "\n";
     Printf.printf "Saw %d nodes.\n" !counter
 
+let get_lowest_bit_inlined field =
+    let field_with_bit = field land lnot (field - 1)
+    in lowest_bit_array.(field_with_bit mod 67)
+[@@inline]
+
 let test_mod_alg n =
     for i = 1 to n do
         for j = 0 to 51 do
-            ignore (get_lowest_bit (1 lsl j))
+            ignore (get_lowest_bit_inlined (1 lsl j))
         done
     done
 
