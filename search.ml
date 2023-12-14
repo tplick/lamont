@@ -518,15 +518,18 @@ let get_hands_from_deal (Deal d) = (* d.d_hands *)
         | [PackedHand a; PackedHand b; PackedHand c; PackedHand d] -> (a, b, c, d)
         | _ -> raise (Failure "impossible")
 
-let deal_for_hash (Deal d as deal) =
-    match d.d_deal_for_hash with
-        | Some v -> v
-        | None ->
+let calculate_deal_for_hash (Deal d as deal) =
     match (get_hands_from_deal @@ make_deal_canonical deal) with
         | (w, x, y, z) ->
             let result = (w + d.d_to_move lsl 56, x, y, z)
             in d.d_deal_for_hash <- Some result;
             result
+
+let deal_for_hash (Deal d as deal) =
+    match d.d_deal_for_hash with
+        | Some v -> v
+        | None -> calculate_deal_for_hash deal
+[@@inline]
 
 module TTHashtbl = Hashtbl.Make (struct
     type t = int * int * int * int
@@ -548,7 +551,7 @@ let store_value_in_tt tt deal value middle =
         then clear_tt tt middle);
     TTHashtbl.replace tt (deal_for_hash deal) (immediate_value_of_deal deal, value, ref 6)
 
-let look_up_value_in_tt tt deal middle =
+let look_up_value_in_tt tt deal (middle : int) =
     let d4h = deal_for_hash deal in
     let hash_val = TTHashtbl.find_opt tt d4h in
     let deal_val = (match hash_val with
