@@ -493,12 +493,6 @@ let canonicalize_hand hand pop_mask =
                 pop_suit_mask = (pop_mask' lsr 0) land 8191 in
             let canon_suit_mask = make_canonical_mask pop_suit_mask hand_suit_mask in
             canon_suit_mask) [@@inline]
-    and make_mask hand' pop_mask' shift =
-        (
-            let hand_suit_mask = (hand' lsr shift) land 8191 and
-                pop_suit_mask = (pop_mask' lsr shift) land 8191 in
-            let canon_suit_mask = make_canonical_mask pop_suit_mask hand_suit_mask in
-            canon_suit_mask)
     in (make_mask_0 hand pop_mask lsl 0) +
        (make_mask_0 (hand lsr 13) (pop_mask lsr 13) lsl 13) +
        (make_mask_0 (hand lsr 26) (pop_mask lsr 26) lsl 26) +
