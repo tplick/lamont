@@ -121,7 +121,7 @@ type deal = Deal of {
     d_tricks: int * int;
     d_turns: int;
     d_last_play: card option;
-    mutable d_deal_for_hash: (int * int * int * int * int) option
+    mutable d_deal_for_hash: (int * int * int * int) option
 }
 
 let rec deal_hands () =
@@ -175,7 +175,7 @@ let get_playable_cards (Deal d as deal) =
             in cards_in_hand @@ unpack_hand (match following with 0 -> ph | _ -> PackedHand following)
 
 let are_cards_equal (Card (s1, r1)) (Card (s2, r2)) =
-    s1 == s2 && r1 == r2
+    r1 == r2 && s1 == s2
 
 (*
 let hand_without_card card (Hand h) =
@@ -274,7 +274,7 @@ let card_currently_winning (Deal d as deal) =
             let winner =
                 List.fold_left
                     (fun old_c new_c ->
-                        if suit_of_card new_c = suit_of_card old_c && new_c > old_c
+                        if suit_of_card new_c = suit_of_card old_c && rank_of_card new_c > rank_of_card old_c
                             then new_c
                             else old_c)
                     lead

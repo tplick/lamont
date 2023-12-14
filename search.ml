@@ -524,17 +524,17 @@ let deal_for_hash (Deal d as deal) =
         | None ->
     match (get_hands_from_deal @@ make_deal_canonical deal) with
         | (w, x, y, z) ->
-            let result = (w, x, y, z, d.d_to_move)
+            let result = (w + d.d_to_move lsl 56, x, y, z)
             in d.d_deal_for_hash <- Some result;
             result
 
 module TTHashtbl = Hashtbl.Make (struct
-    type t = int * int * int * int * int
-    let equal (a, b, c, d, e) (v, w, x, y, z) =
+    type t = int * int * int * int
+    let equal (a, b, c, d) (v, w, x, y) =
         let (===) (s : int) (t : int) = (s = t)
-        in a === v && b === w && c === x && d === y && e === z
-    let hash (a, b, c, d, e) =
-        (a - b lsl 1 + c lsl 2 - d lsl 3 + e lsl 56) mod 16383
+        in a === v && b === w && c === x && d === y
+    let hash (a, b, c, d) =
+        (a - b lsl 1 + c lsl 2 - d lsl 3) mod 16383
 end)
 
 let clear_tt tt middle =
@@ -697,7 +697,8 @@ let play_highest field suit_mask =
     without_bit (get_highest_bit @@ field land suit_mask) field
 
 let play_lowest_if_any field suit_mask =
-    without_bit (get_lowest_bit @@ field land suit_mask) field
+    let field_in_suit = field land suit_mask in
+    (field land lnot suit_mask) lor (without_lowest_bit field_in_suit)
 
 let lowest_bit_as_field field =
     field land lnot (field - 1)
@@ -713,9 +714,10 @@ let get_throwaway_bit field =
     get_lowest_bit (field land rank_mask)
 
 let play_lowest_or_any field suit_mask =
-    match get_lowest_bit @@ field land suit_mask with
-        | Some bit -> without_bit (Some bit) field
-        | None -> without_bit (get_throwaway_bit field) field
+    let field_in_suit = field land suit_mask in
+    match field land suit_mask with
+        | 0 -> without_bit (get_throwaway_bit field) field
+        | x -> (field land lnot suit_mask) lor (without_lowest_bit field_in_suit)
 
 let count_bits_alt x =
     let rec count_bits_alt' acc x =
@@ -1140,6 +1142,12 @@ let tricks_before_losing_one deal =
         then Some (number_of_highest_cards_held_by_current_side deal)
         else None
 
+let are_card_options_unequal a b =
+    not @@ match a, b with
+        | Some (Card (suit_1, rank_1)), Some (Card (suit_2, rank_2)) -> rank_1 = rank_2 && suit_1 = suit_2
+        | None, None -> true
+        | _, _ -> false
+
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
     if depth = 0
@@ -1259,7 +1267,9 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                 | None -> ());
             (if !best_value < middle || depth = topdepth
                 then let recom = match recommendation with Some y -> Some !y | None -> None
-                in List.iter (fun succ -> if get_last_play succ <> recom then iter_body succ)
+                in List.iter (fun succ ->
+                                    let (<>) = are_card_options_unequal in
+                                    if get_last_play succ <> recom then iter_body succ)
                 (let raw_successors = successors_of_deal_without_equals deal
                  in let succs_to_pass =
                     (let sorted_successors = (if depth land 3 = 0 then (fun x -> x) else sort_deals_by_last_play) @@ raw_successors in
