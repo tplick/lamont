@@ -413,10 +413,10 @@ let are_card_options_unequal a b =
 [@@inline]
 
 module RecHashtbl = Hashtbl.Make (struct
-    type t = packed_hand * int * card option * bool
-    let equal (PackedHand a, b, c, d) (PackedHand u, v, w, x) =
+    type t = packed_hand * int
+    let equal (PackedHand a, b) (PackedHand u, v) =
         let (===) (s : int) (t : int) = (s = t)
-        in a === u && b === v && d == x && are_card_options_equal c w
+        in b === v && a === u
     let hash = Hashtbl.hash
 end)
 
@@ -1000,13 +1000,13 @@ let sort_first_different_suits (first, second) =
 let make_recom_key (Deal d as deal) =
     let a = get_restricted_packed_hand_to_move deal and
         b = (match get_highest_bit (match get_restricted_partners_packed_hand deal with PackedHand x -> x) with
-                | Some i -> 1024 lsl i
-                | None -> 0) and
-        c = (card_currently_winning deal) and
+                | Some i -> i
+                | None -> 52) and
+        c = (match card_currently_winning deal with Some card -> index_of_card card | None -> 52) and
         d = (match get_suit_led deal with None -> 4 | Some suit -> Obj.magic suit) and
-        e = is_top_card_winning_true deal and
+        e = (if is_top_card_winning_true deal then 1 lsl 24 else 0) and
         f = d.d_to_move
-    in (a, b + d + f lsl 3, c, e)
+    in (a, b + c lsl 6 + d lsl 12 + f lsl 18 + e)
 
 let reset_suit_ordering player = ()
 (*
