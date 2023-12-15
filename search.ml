@@ -795,11 +795,11 @@ let is_akq_finesse_in_order (first_, second_, third_, fourth_) suit_mask =
 
 let rec get_nth_highest_bit field n =
     match n with
+        | 1 -> (match get_highest_bit field with Some bit -> bit | None -> 64)
         | _ when n < 1 -> raise (Failure "bad n passed to get_nth_highest_bit")
-        | 1 -> get_highest_bit field
         | _ -> (match get_highest_bit field with
                     | Some bit -> get_nth_highest_bit (field land lnot (1 lsl bit)) (n - 1)
-                    | None -> None)
+                    | None -> 64)
 
 let rec remove_duplicate_front_bits field =
     match get_highest_bit field with
@@ -821,16 +821,11 @@ let is_akq_finesse_in_order (first_0, second_0, third_0, fourth_0) suit_mask_0 =
     third > (first lor second lor fourth) &&
     without_lowest_bit second <> 0 &&
     without_lowest_bit third <> 0 &&
-    get_highest_bit suit_mask = get_highest_bit third &&
-    get_nth_highest_bit suit_mask 2 = get_highest_bit second &&
+    get_nth_highest_bit suit_mask 1 = get_nth_highest_bit third 1 &&
+    get_nth_highest_bit suit_mask 2 = get_nth_highest_bit second 1 &&
     get_nth_highest_bit suit_mask 3 = get_nth_highest_bit third 2
-  then get_nth_highest_bit third 2
+  then Some (get_nth_highest_bit third 2)
   else None
-
-let play_second_highest field suit_mask =
-    match get_nth_highest_bit (field land suit_mask) 2 with
-        | Some bit -> field land lnot (1 lsl bit)
-        | None -> field
 
 let play_specific_bit field bit =
     field land lnot (1 lsl bit)
