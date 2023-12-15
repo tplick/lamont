@@ -402,7 +402,25 @@ let count_top_tricks_in_hand deal =
         0
         all_suit_masks
 
-let recommendation_table = Hashtbl.create 10000
+let are_card_options_equal a b =
+    match a, b with
+        | Some (Card (suit_1, rank_1)), Some (Card (suit_2, rank_2)) -> rank_1 = rank_2 && suit_1 = suit_2
+        | None, None -> true
+        | _, _ -> false
+
+let are_card_options_unequal a b =
+    not @@ are_card_options_equal a b
+[@@inline]
+
+module RecHashtbl = Hashtbl.Make (struct
+    type t = packed_hand * int * card option * int * bool * int
+    let equal (PackedHand a, b, c, d, e, f) (PackedHand u, v, w, x, y, z) =
+        let (===) (s : int) (t : int) = (s = t)
+        in a === u && b === v && d === x && e == y && f === z && are_card_options_equal c w
+    let hash = Hashtbl.hash
+end)
+
+let recommendation_table = RecHashtbl.create 10000
 let recommendation_history = Hashtbl.create 10000
 let suit_ordering = Array.make 4 all_suits
 let default_ordering = ref all_suits
@@ -986,13 +1004,16 @@ let sort_first_different_suits (first, second) =
 
 let make_recom_key (Deal d as deal) =
    (get_restricted_packed_hand_to_move deal,
-    get_highest_bit (match get_restricted_partners_packed_hand deal with PackedHand x -> x),
+    (match get_highest_bit (match get_restricted_partners_packed_hand deal with PackedHand x -> x) with
+        | Some i -> 1 lsl i
+        | None -> 0),
     (card_currently_winning deal),
-    get_suit_led deal,
+    (match get_suit_led deal with None -> -1 | Some suit -> Obj.magic suit),
     is_top_card_winning_true deal,
     d.d_to_move)
 
-let reset_suit_ordering player =
+let reset_suit_ordering player = ()
+(*
     let freqs = Hashtbl.create 4 in
     List.iter (fun suit -> Hashtbl.replace freqs suit 0) all_suits;
     Hashtbl.iter (fun (_, _, _, suit_led, _, player_) card_ref ->
@@ -1003,6 +1024,7 @@ let reset_suit_ordering player =
     suit_ordering.(player) <- List.stable_sort (fun a b ->
             Hashtbl.find freqs a - Hashtbl.find freqs b)
         !default_ordering
+*)
 
 let rec sort_kicked_by_ordering kicked ordering =
     match ordering with
@@ -1053,7 +1075,8 @@ let string_of_hand ph =
               (match unpack_hand ph with Hand cards -> cards);
     !s
 
-let print_recom_history () =
+let print_recom_history () = ()
+(*
     Hashtbl.iter (fun (ph, partner_bit, ccw_opt, lead_opt, tcw, player) card_list_ref ->
       if lead_opt = None then (
         Printf.printf "@@@ (%s, %s, %s, %s, %s, %s) ->"
@@ -1066,7 +1089,7 @@ let print_recom_history () =
         List.iter (fun card -> Printf.printf " %s" (string_of_card card)) !card_list_ref;
         Printf.printf "\n"))
       recommendation_history
-
+*)
 let symmetric_tricks_for_opponents_in_suit (Deal d as deal) suit_mask =
     let PackedHand opp1 = List.nth d.d_hands (d.d_to_move lxor 1) and
         PackedHand opp2 = List.nth d.d_hands (d.d_to_move lxor 3) and
@@ -1138,12 +1161,6 @@ let tricks_before_losing_one deal =
                          all_suits
         then Some (number_of_highest_cards_held_by_current_side deal)
         else None
-
-let are_card_options_unequal a b =
-    not @@ match a, b with
-        | Some (Card (suit_1, rank_1)), Some (Card (suit_2, rank_2)) -> rank_1 = rank_2 && suit_1 = suit_2
-        | None, None -> true
-        | _, _ -> false
 
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
@@ -1258,7 +1275,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                                     | Some x -> x :: variation
                                     | None -> variation);
                              ())) and
-        recommendation = (if depth land 3 = 1 && depth > 12 then None else Hashtbl.find_opt recommendation_table (make_recom_key deal)) in
+        recommendation = (if depth land 3 = 1 && depth > 12 then None else RecHashtbl.find_opt recommendation_table (make_recom_key deal)) in
             (match recommendation with
                 | Some card_ref -> iter_body @@ deal_after_playing !card_ref deal
                 | None -> ());
@@ -1286,7 +1303,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     (if depth = topdepth && topdepth >= -36 then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
-        | x :: _ -> (match recommendation with Some y -> y := x | None -> Hashtbl.replace recommendation_table (make_recom_key deal) (ref x));
+        | x :: _ -> (match recommendation with Some y -> y := x | None -> RecHashtbl.replace recommendation_table (make_recom_key deal) (ref x));
                     if !report_recs && !best_value > middle then report_recommendation deal depth iv middle x;
                     if !report_rec_history && !best_value > middle then add_recom_to_history deal x
         | [] -> ());
@@ -1337,7 +1354,7 @@ let name_of_suit = function
 let print_tally_of_recommended_suits () =
     let table = Hashtbl.create 4 in
     List.iter (fun suit -> Hashtbl.replace table suit 0) all_suits;
-    Hashtbl.iter (fun k v ->
+    RecHashtbl.iter (fun k v ->
         let suit = suit_of_card !v in
         Hashtbl.replace table suit (Hashtbl.find table suit + 1))
         recommendation_table;
@@ -1353,7 +1370,7 @@ let number_to_binary n0 idx =
     !s
 
 let evaluate_deal_gamma_top counter deal depth idx =
-    Hashtbl.clear recommendation_table;
+    RecHashtbl.clear recommendation_table;
     if not !leave_ordering_alone then set_default_ordering deal;
     Array.fill suit_ordering 0 4 !default_ordering;
     let middle = ref 0 and variation = ref [] and
@@ -1367,7 +1384,7 @@ let evaluate_deal_gamma_top counter deal depth idx =
                         evaluate_deal_gamma d counter tower deal d !middle
                  in (clean_tt_tower tower (if new_middle > !middle then (<=) else (>=)) !middle;
                      middle := new_middle; variation := new_variation; ledger := new_middle :: !ledger;
-                     Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (Hashtbl.length recommendation_table);
+                     Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (RecHashtbl.length recommendation_table);
                      set_ordering_from_variation new_variation;
                      if !show_missed_runs && new_middle = d / 4 && !counter > new_middle
                             then Printf.printf "@@@\n%!"))
