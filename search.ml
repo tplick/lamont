@@ -561,7 +561,7 @@ let get_hands_from_deal (Deal d) = (* d.d_hands *)
 let calculate_deal_for_hash (Deal d as deal) =
     match (get_hands_from_deal @@ make_deal_canonical deal) with
         | (w, x, y, z) ->
-            let result = (w + d.d_to_move lsl 56, x, y, z)
+            let result = (w - x lsl 1 + y lsl 2 - z lsl 3 + d.d_to_move lsl 60, x, y, z)
             in d.d_deal_for_hash <- Some result;
             result
 
@@ -577,7 +577,7 @@ module TTHashtbl = Hashtbl.Make (struct
         let (===) (s : int) (t : int) = (s = t)
         in a === v && b === w && c === x && d === y
     let hash (a, b, c, d) =
-        (a - b lsl 1 + c lsl 2 - d lsl 3) mod 16383
+        a mod 16383
 end)
 
 let clear_tt tt middle =
