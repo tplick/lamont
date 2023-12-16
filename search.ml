@@ -713,10 +713,11 @@ let play_highest field suit_mask =
 
 let play_lowest_if_any field suit_mask =
     let field_in_suit = field land suit_mask in
-    (field land lnot suit_mask) lor (without_lowest_bit field_in_suit)
+    (field - field_in_suit) + (without_lowest_bit field_in_suit)
+[@@inline]
 
 let lowest_bit_as_field field =
-    field land lnot (field - 1)
+    field land (-field)
 
 let two_mask = 1 + 1 lsl 13 + 1 lsl 26 + 1 lsl 39
 let fold_mask field =
@@ -730,9 +731,10 @@ let get_throwaway_bit field =
 
 let play_lowest_or_any field suit_mask =
     let field_in_suit = field land suit_mask in
-    match field land suit_mask with
+    match field_in_suit with
         | 0 -> without_bit (get_throwaway_bit field) field
-        | x -> (field land lnot suit_mask) lor (without_lowest_bit field_in_suit)
+        | _ -> (field - field_in_suit) + (without_lowest_bit field_in_suit)
+[@@inline]
 
 let count_bits_alt x =
     let rec count_bits_alt' acc x =
@@ -854,18 +856,21 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mas
                                                            (play_lowest_if_any opp1 suit_mask)
                                                            full_mask_list
                                                            full_mask_list
-                          | Some bit -> min
+                          | Some bit ->
+                                let mine_after = play_lowest_if_any mine suit_mask and
+                                    opp2_after = play_lowest_if_any opp2 suit_mask in
+                                min
                                     (* first, if opp1 plays low: *)
                              (1 + count_sequential_tricks' (play_specific_bit partners bit)
-                                                           (play_lowest_or_any mine suit_mask)
-                                                           (play_lowest_if_any opp2 suit_mask)
+                                                           mine_after
+                                                           opp2_after
                                                            (play_lowest_if_any opp1 suit_mask)
                                                            full_mask_list
                                                            full_mask_list)
                                     (* second, if opp1 plays high: *)
                              (1 + count_sequential_tricks' (play_highest partners suit_mask)
-                                                           (play_lowest_or_any mine suit_mask)
-                                                           (play_lowest_if_any opp2 suit_mask)
+                                                           mine_after
+                                                           opp2_after
                                                            (play_highest opp1 suit_mask)
                                                            full_mask_list
                                                            full_mask_list)
