@@ -809,7 +809,7 @@ let rec remove_duplicate_front_bits field =
                 else field
         | _ -> field
 
-let is_akq_finesse_in_order (first_0, second_0, third_0, fourth_0) suit_mask_0 =
+let is_akq_finesse_in_order first_0 second_0 third_0 fourth_0 suit_mask_0 =
     let first, second, third, fourth =
         (lowest_bit_as_field (first_0 land suit_mask_0),
          second_0 land suit_mask_0,
@@ -834,7 +834,9 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mas
     match suit_mask_list with
         | [] -> 0
         | suit_mask :: suit_masks_rest ->
-            match can_play_sequential_trick_in_suit mine partners opp1 opp2 suit_mask with
+            match (if (mine lor partners) land suit_mask > (opp1 lor opp2) land suit_mask
+                        then can_play_sequential_trick_in_suit mine partners opp1 opp2 suit_mask
+                        else `Neither) with
                 | `Mine -> 1 + count_sequential_tricks' (play_highest mine suit_mask)
                                                         (play_lowest_or_any partners suit_mask)
                                                         (play_lowest_if_any opp1 suit_mask)
@@ -842,7 +844,7 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mas
                                                         full_mask_list
                                                         full_mask_list
                 | `Partner -> let can_finesse = is_akq_finesse_in_order
-                                                    (mine, opp1, partners, opp2)
+                                                    mine  opp1  partners  opp2
                                                     suit_mask in
                       (match can_finesse with
                           | None ->
