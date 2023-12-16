@@ -129,6 +129,12 @@ let test_fold_alg n =
         done
     done
 
+let rec get_generated_deal idx =
+    if idx <= 1
+        then new_deal ()
+        else (ignore (new_deal ());
+              get_generated_deal (idx - 1))
+
 let rec process_args next_arg =
     let next () = process_args next_arg
     in match next_arg () with
@@ -157,6 +163,7 @@ let rec process_args next_arg =
                        next ()
         | "-test-mod" -> test_mod_alg   100000000
         | "-test-fold" -> test_fold_alg 100000000
+        | "-play-test" -> play_test_with_deal (get_generated_deal (int_of_string @@ next_arg ()))
         | _ -> Printf.printf "Bad arguments.\n"
 
 let _ =

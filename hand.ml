@@ -361,3 +361,13 @@ let play_test () =
         print_deal !deal
     done
 
+let play_test_with_deal deal_0 =
+    let deal = ref deal_0 in
+    print_deal !deal;
+    for i = 1 to 52 do
+        Unix.sleep 1;
+        deal := random_child !deal;
+        Printf.printf "\n";
+        print_deal !deal
+    done
+
