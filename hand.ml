@@ -196,7 +196,7 @@ let packed_hand_without_card card (PackedHand ph) =
 let rec rotate_to_front list elt acc =
     match list with
         | [] -> []
-        | x :: xs when are_cards_equal x elt -> list @ acc
+        | x :: xs when are_cards_equal x elt -> list @ List.rev acc
         | x :: xs -> rotate_to_front xs elt (x :: acc)
 
 let rotate_to_back list elt =
