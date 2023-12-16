@@ -296,6 +296,7 @@ let rec maximum : int list -> int = function
 let without_lowest_bit mask =
     mask land (mask - 1)
 
+(*
 let without_highest_bit mask =
     if without_lowest_bit mask = 0
         then 0
@@ -315,7 +316,22 @@ let without_highest_bit mask =
             then bit := i
     done;
     mask lxor (1 lsl !bit)
+*)
 
+let rec highest_bit_as_field field_0 =
+    let field = ref field_0 and wol = ref (without_lowest_bit field_0)
+    in
+    while !wol <> 0 do
+        field := !wol;
+        wol := without_lowest_bit !wol
+    done;
+    !field
+[@@inline]
+
+let without_highest_bit mask =
+    mask - highest_bit_as_field mask
+
+(*
 let count_bits mask =
     let count = ref 0 in
     for i = 0 to 51 do
@@ -323,6 +339,18 @@ let count_bits mask =
             then incr count
     done;
     !count
+*)
+
+let count_bits x =
+    let count = ref 0 and field = ref x
+    in
+    while !field <> 0 do
+        field := without_lowest_bit !field;
+        incr count
+    done;
+    !count
+
+let count_bits_alt = count_bits
 
 let rec count_iter_tricks_in_suit mine partner opp1 opp2 =
     if mine = 0 || partner = 0
@@ -708,8 +736,23 @@ let without_bit bit_option field =
         | Some bit -> field land lnot (1 lsl bit)
         | None -> field
 
+(*
 let play_highest field suit_mask =
     without_bit (get_highest_bit @@ field land suit_mask) field
+*)
+
+(*
+let rec highest_bit_as_field field =
+    let wol = without_lowest_bit field in
+    if wol = 0
+        then field
+        else highest_bit_as_field wol
+[@@inline]
+*)
+
+let play_highest field suit_mask =
+    let field_in_suit = field land suit_mask
+    in field - highest_bit_as_field field_in_suit
 
 let play_lowest_if_any field suit_mask =
     let field_in_suit = field land suit_mask in
@@ -735,13 +778,6 @@ let play_lowest_or_any field suit_mask =
         | 0 -> without_bit (get_throwaway_bit field) field
         | _ -> (field - field_in_suit) + (without_lowest_bit field_in_suit)
 [@@inline]
-
-let count_bits_alt x =
-    let rec count_bits_alt' acc x =
-                if x = 0
-                    then acc
-                    else count_bits_alt' (acc + 1) (without_lowest_bit x)
-    in count_bits_alt' 0 x
 
 let can_play_sequential_trick_in_suit mine_all partners_all opp1_all opp2_all suit_mask =
     let mine = mine_all land suit_mask and
