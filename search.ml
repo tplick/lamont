@@ -571,28 +571,36 @@ let deal_for_hash (Deal d as deal) =
         | None -> calculate_deal_for_hash deal
 [@@inline]
 
+let make_bloom_key (a, _, _, _) = (abs a) mod 65535
+
 module TTHashtbl = Hashtbl.Make (struct
     type t = int * int * int * int
     let equal (a, b, c, d) (v, w, x, y) =
         let (===) (s : int) (t : int) = (s = t)
         in a === v && b === w && c === x && d === y
     let hash (a, b, c, d) =
-        a mod 16383
+        a mod 8191
 end)
 
-let clear_tt tt middle =
+let clear_tt (tt, filter) middle =
+    clear_bloom filter;
     TTHashtbl.filter_map_inplace
         (fun k ((v, m, used) as x) ->
-            if !used > 0 then (decr used; Some x) else None)
+            if !used > 0 then (decr used; set_bloom filter (make_bloom_key k); Some x) else None)
     tt
 
-let store_value_in_tt tt deal value middle =
+let store_value_in_tt (tt, filter) deal value middle =
    (if TTHashtbl.length tt >= 10000
-        then clear_tt tt middle);
-    TTHashtbl.replace tt (deal_for_hash deal) (immediate_value_of_deal deal, value, ref 6)
-
-let look_up_value_in_tt tt deal (middle : int) =
+        then clear_tt (tt, filter) middle);
     let d4h = deal_for_hash deal in
+    TTHashtbl.replace tt d4h (immediate_value_of_deal deal, value, ref 6);
+    set_bloom filter (make_bloom_key d4h)
+
+let look_up_value_in_tt (tt, filter) deal (middle : int) =
+    let d4h = deal_for_hash deal in
+    if check_bloom filter (make_bloom_key d4h) = false
+        then None
+        else
     let hash_val = TTHashtbl.find_opt tt d4h in
     let deal_val = (match hash_val with
         | Some (stored_iv, value, _) ->
@@ -1354,7 +1362,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
 let make_trans_table_tower () =
     let tower = ref [] in
     for i = 0 to 52 do
-        tower := (TTHashtbl.create 100) :: !tower
+        tower := (TTHashtbl.create 100, make_bloom ()) :: !tower
     done;
     !tower
 
@@ -1366,10 +1374,11 @@ let rec print_ledger opening ledger =
         | x :: xs -> Printf.printf "%d " x; print_ledger false xs
 
 let clean_tt_tower tower comparison new_middle =
-    List.iter (fun tt ->
-        TTHashtbl.filter_map_inplace (fun _ ((v, m, u) as x) ->
+    List.iter (fun (tt, filter) ->
+        clear_bloom filter;
+        TTHashtbl.filter_map_inplace (fun k ((v, m, u) as x) ->
             if comparison v m && comparison m new_middle
-                then Some x else None)
+                then (set_bloom filter (make_bloom_key k); Some x) else None)
             tt)
         tower
 
@@ -1408,6 +1417,10 @@ let number_to_binary n0 idx =
     done;
     !s
 
+let clear_tower_level (tt, filter) =
+    TTHashtbl.clear tt;
+    clear_bloom filter
+
 let evaluate_deal_gamma_top counter deal depth idx =
     RecHashtbl.clear recommendation_table;
     if not !leave_ordering_alone then set_default_ordering deal;
@@ -1417,7 +1430,7 @@ let evaluate_deal_gamma_top counter deal depth idx =
         ledger = ref [] in
     for d = 1 to depth do
         if d land 3 = 0
-            then (if not !opt then List.iter TTHashtbl.clear tower;
+            then (if not !opt then List.iter clear_tower_level tower;
                  (* for player = 0 to 3 do reset_suit_ordering player done; *)
                  let (new_middle, new_variation) =
                         evaluate_deal_gamma d counter tower deal d !middle
