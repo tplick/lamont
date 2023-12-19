@@ -155,7 +155,14 @@ let get_highest_bit field =
 let highest_card_in_suit_packed suit their_cards lead_option =
     let PackedHand card_mask = their_cards in
     let highest_in_hand = (card_from_index_option @@ get_highest_bit (card_mask land mask_for_suit suit)) in
-    max highest_in_hand lead_option
+    (* max highest_in_hand lead_option *)
+    match highest_in_hand, lead_option with
+        | None, Some _   -> lead_option
+        | Some _, None   -> highest_in_hand
+        | Some x, Some y -> if rank_of_card x >= rank_of_card y
+                                then highest_in_hand
+                                else lead_option
+        | None, None -> None
 
 let can_2nd_player_win_next_trick (Deal d as deal) =
     match get_lead deal with

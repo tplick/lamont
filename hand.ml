@@ -199,10 +199,16 @@ let rec rotate_to_front list elt acc =
         | x :: xs when are_cards_equal x elt -> list @ List.rev acc
         | x :: xs -> rotate_to_front xs elt (x :: acc)
 
-let rotate_to_back list elt =
-    match rotate_to_front list elt [] with
-        | [] -> []
-        | x :: xs -> xs @ [x]
+let rotate_to_back list x =
+    let (=) = are_cards_equal in
+    match list with
+        | a :: rest when a = x ->
+            rest @ [a]
+        | a :: b :: rest when b = x ->
+            rest @ [a; b]
+        | a :: b :: c :: rest when c = x ->
+            rest @ [a; b; c]
+        | _ -> list
 
 let rotate_deal_to_winner (Deal d as deal) =
     let played = ref d.d_played in
