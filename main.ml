@@ -135,6 +135,14 @@ let rec get_generated_deal idx =
         else (ignore (new_deal ());
               get_generated_deal (idx - 1))
 
+let run_lite_benchmark limit =
+    for i = 1 to limit do
+        let d = new_deal ()
+        in Printf.printf "#%d: %d\n"
+            i
+            (count_sequential_tricks_top d)
+    done
+
 let rec process_args next_arg =
     let next () = process_args next_arg
     in match next_arg () with
@@ -164,6 +172,7 @@ let rec process_args next_arg =
         | "-test-mod" -> test_mod_alg   100000000
         | "-test-fold" -> test_fold_alg 100000000
         | "-play-test" -> play_test_with_deal (get_generated_deal (int_of_string @@ next_arg ()))
+        | "-bench-lite" -> run_lite_benchmark (int_of_string @@ next_arg ())
         | _ -> Printf.printf "Bad arguments.\n"
 
 let _ =
