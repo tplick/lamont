@@ -4,6 +4,9 @@ let report_rec_history = ref false
 let show_missed_runs = ref false
 let opt = ref true
 
+let int_min (x : int) (y : int) = if x <= y then x else y
+let int_max (x : int) (y : int) = if x >= y then x else y
+
 let immediate_value_of_deal (Deal d) =
     match d.d_to_move, d.d_tricks with
         | 0, (ew, ns) | 2, (ew, ns) -> ew - ns
@@ -268,7 +271,7 @@ let count_top_tricks_across_hands_in_suit deal suit =
         partners_cards = cards_in_suit suit (get_partners_cards deal) in
     let top_tricks = count_top_tricks (List.rev @@ List.sort compare (my_cards @ partners_cards))
     in
-    min top_tricks (min (List.length my_cards) (List.length partners_cards))
+    int_min top_tricks (int_min (List.length my_cards) (List.length partners_cards))
 
 let count_top_tricks_across_hands deal =
     List.fold_left (fun acc suit ->
@@ -405,7 +408,7 @@ let count_iter_tricks_as_2nd_hand deal =
         else 0
 
 let can_return_early iv tricks_left reeled_off middle =
-    let capped_reel = min tricks_left reeled_off
+    let capped_reel = int_min tricks_left reeled_off
     in iv + capped_reel - (tricks_left - capped_reel) > middle
 
 let count_top_tricks_in_hand deal =
@@ -642,10 +645,10 @@ let count_long_suit_tricks_in_hand deal =
         PackedHand opp1 = get_first_opponents_packed_hand deal and
         PackedHand opp2 = get_second_opponents_packed_hand deal in
     List.fold_left (fun acc suit_mask ->
-        max acc @@ get_long_suit_tricks_in_suit (mine land suit_mask)
-                                                (partners land suit_mask)
-                                                (opp1 land suit_mask)
-                                                (opp2 land suit_mask))
+        int_max acc @@ get_long_suit_tricks_in_suit (mine land suit_mask)
+                                                    (partners land suit_mask)
+                                                    (opp1 land suit_mask)
+                                                    (opp2 land suit_mask))
         0
         all_suit_masks
 
@@ -932,8 +935,8 @@ let count_sequential_tricks deal suit_mask_list =
     count_sequential_tricks' mine partners opp1 opp2 suit_mask_list suit_mask_list
 
 let count_sequential_tricks_top deal =
-    max (count_sequential_tricks deal all_suit_masks)
-        (count_sequential_tricks deal all_suit_masks_rev)
+    int_max (count_sequential_tricks deal all_suit_masks)
+            (count_sequential_tricks deal all_suit_masks_rev)
 
 
 
@@ -992,8 +995,8 @@ let count_sequential_tricks_for_2nd deal suit_mask_list =
     0
 
 let count_sequential_tricks_for_2nd_top deal =
-    max (count_sequential_tricks_for_2nd deal all_suit_masks)
-        (count_sequential_tricks_for_2nd deal all_suit_masks_rev)
+    int_max (count_sequential_tricks_for_2nd deal all_suit_masks)
+            (count_sequential_tricks_for_2nd deal all_suit_masks_rev)
 
 let pull_from_tt tts succs middle =
     match tts with
@@ -1188,7 +1191,7 @@ let is_highest_card_simply_guarded deal suit =
         opp1_bits = count_bits (opp1 land suit_mask) and
         opp2_bits = count_bits (opp2 land suit_mask)
     in
-        opp1_bits >= 1 && opp2_bits >= 1 && max opp1_bits opp2_bits >= 2 &&
+        opp1_bits >= 1 && opp2_bits >= 1 && int_max opp1_bits opp2_bits >= 2 &&
         count_bits ((theirs land suit_mask) land lnot
                     (fill_in_below (without_highest_bit (ours land suit_mask)))) >= 2
 
@@ -1249,13 +1252,13 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
         else
 (*
     if depth land 3 = 0 && iv + (depth / 4) > middle
-                        && max (count_top_tricks_in_both_hands deal)
-                               (count_ace_tricks_between_hands deal) >= depth / 4
+                        && int_max (count_top_tricks_in_both_hands deal)
+                                   (count_ace_tricks_between_hands deal) >= depth / 4
         then (middle + 1, [])
         else
 *)
 
-    if !opt && depth land 3 = 0 && can_return_early iv (depth / 4) (max (count_top_tricks_in_both_hands deal)
+    if !opt && depth land 3 = 0 && can_return_early iv (depth / 4) (int_max (count_top_tricks_in_both_hands deal)
                                   (count_ace_tricks_between_hands deal)) middle
         then (middle + 1, [])
         else
@@ -1288,7 +1291,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
         else
 (*
     if depth land 3 = 0 &&
-                           (let capped = min (tricks_to_be_lost_immediately deal) (depth / 4)
+                           (let capped = int_min (tricks_to_be_lost_immediately deal) (depth / 4)
                             in let remainder = (depth / 4) - capped
                             in iv - capped + remainder < middle)
         then (middle - 1, [])
