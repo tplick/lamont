@@ -135,12 +135,13 @@ let rec get_generated_deal idx =
         else (ignore (new_deal ());
               get_generated_deal (idx - 1))
 
-let run_lite_benchmark limit =
-    for i = 1 to limit do
-        let d = new_deal ()
-        in Printf.printf "#%d: %d\n"
-            i
-            (count_sequential_tricks_top d)
+let run_lite_benchmark iterations_per_deal =
+    for i = 1 to 1000 do
+        let d = new_deal () in
+        for j = 1 to iterations_per_deal do
+            ignore (count_sequential_tricks_top d)
+        done;
+        Printf.printf "#%d: %d\n%!" i (count_sequential_tricks_top d)
     done
 
 let rec process_args next_arg =
