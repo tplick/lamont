@@ -857,6 +857,12 @@ let rec get_nth_highest_bit field n =
                     | Some bit -> get_nth_highest_bit (field land lnot (1 lsl bit)) (n - 1)
                     | None -> 64)
 
+let rec get_nth_highest_bit_as_field field n =
+    match n with
+        | 1 -> highest_bit_as_field field
+        | _ when n < 1 -> raise (Failure "bad n passed to get_nth_highest_bit_as_field")
+        | _ -> get_nth_highest_bit_as_field (without_highest_bit field) (n - 1)
+
 let rec remove_duplicate_front_bits field =
     match get_highest_bit field with
         | Some bit when bit > 0 ->
@@ -877,14 +883,17 @@ let is_akq_finesse_in_order first_0 second_0 third_0 fourth_0 suit_mask_0 =
     third > (first lor second lor fourth) &&
     without_lowest_bit second <> 0 &&
     without_lowest_bit third <> 0 &&
-    get_nth_highest_bit suit_mask 1 = get_nth_highest_bit third 1 &&
-    get_nth_highest_bit suit_mask 2 = get_nth_highest_bit second 1 &&
-    get_nth_highest_bit suit_mask 3 = get_nth_highest_bit third 2
-  then Some (get_nth_highest_bit third 2)
-  else None
+    get_nth_highest_bit_as_field suit_mask 1 = get_nth_highest_bit_as_field third 1 &&
+    get_nth_highest_bit_as_field suit_mask 2 = get_nth_highest_bit_as_field second 1 &&
+    get_nth_highest_bit_as_field suit_mask 3 = get_nth_highest_bit_as_field third 2
+  then get_nth_highest_bit_as_field third 2
+  else 0
 
 let play_specific_bit field bit =
     field land lnot (1 lsl bit)
+
+let play_specific_bit_as_field field play =
+    field - play
 
 let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mask_list =
     match suit_mask_list with
@@ -903,19 +912,19 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mas
                                                     mine  opp1  partners  opp2
                                                     suit_mask in
                       (match can_finesse with
-                          | None ->
+                          | 0 ->
                               1 + count_sequential_tricks' (play_highest partners suit_mask)
                                                            (play_lowest_or_any mine suit_mask)
                                                            (play_lowest_if_any opp2 suit_mask)
                                                            (play_lowest_if_any opp1 suit_mask)
                                                            full_mask_list
                                                            full_mask_list
-                          | Some bit ->
+                          | finesse_field ->
                                 let mine_after = play_lowest_if_any mine suit_mask and
                                     opp2_after = play_lowest_if_any opp2 suit_mask in
-                                min
+                                int_min
                                     (* first, if opp1 plays low: *)
-                             (1 + count_sequential_tricks' (play_specific_bit partners bit)
+                             (1 + count_sequential_tricks' (play_specific_bit_as_field partners finesse_field)
                                                            mine_after
                                                            opp2_after
                                                            (play_lowest_if_any opp1 suit_mask)
