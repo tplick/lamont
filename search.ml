@@ -856,13 +856,18 @@ let rec get_nth_highest_bit_as_field field n =
         | _ when n < 1 -> raise (Failure "bad n passed to get_nth_highest_bit_as_field")
         | _ -> get_nth_highest_bit_as_field (without_highest_bit field) (n - 1)
 
-let rec remove_duplicate_front_bits field =
-    match get_highest_bit field with
-        | Some bit when bit > 0 ->
-            if field land (1 lsl (bit - 1)) > 0
-                then remove_duplicate_front_bits (field land lnot (1 lsl bit))
-                else field
-        | _ -> field
+let rec remove_bits_if_adjacent_to_right field mask =
+    let next_mask = mask lsr 1 in
+    if field land next_mask = 0
+        then field
+        else remove_bits_if_adjacent_to_right (field - mask) next_mask
+[@@inline]
+
+let remove_duplicate_front_bits field =
+    let b1 = highest_bit_as_field field in
+    match b1 with
+        | 0 -> 0
+        | _ -> remove_bits_if_adjacent_to_right field b1
 
 let is_akq_finesse_in_order first_0 second_0 third_0 fourth_0 suit_mask_0 =
     let first, second, third, fourth =
