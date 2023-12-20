@@ -797,6 +797,13 @@ let play_lowest_or_any field suit_mask =
         | _ -> (field - field_in_suit) + (without_lowest_bit field_in_suit)
 [@@inline]
 
+let rec compare_bit_counts x y =
+    match x, y with
+        | 0, 0 -> 0
+        | _, 0 -> -1
+        | 0, _ -> 1
+        | _, _ -> compare_bit_counts (without_lowest_bit x) (without_lowest_bit y)
+
 let can_play_sequential_trick_in_suit mine_all partners_all opp1_all opp2_all suit_mask =
     let mine = mine_all land suit_mask and
         partners = partners_all land suit_mask and
@@ -805,11 +812,12 @@ let can_play_sequential_trick_in_suit mine_all partners_all opp1_all opp2_all su
     if mine lor partners <= opp1 lor opp2
         then `Neither
         else
-    if without_lowest_bit mine > 0 && count_bits_alt mine < count_bits_alt partners &&
+    let bit_compare = compare_bit_counts mine partners in
+    if without_lowest_bit mine > 0 && bit_compare > 0 &&
                 mine > (opp1 lor opp2) && mine > lowest_bit_as_field partners
         then `Mine
         else
-    if without_lowest_bit partners > 0 && count_bits_alt partners < count_bits_alt mine &&
+    if without_lowest_bit partners > 0 && bit_compare < 0 &&
                 partners > (opp1 lor opp2) && partners > lowest_bit_as_field mine
         then `Partner
         else
