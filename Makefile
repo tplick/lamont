@@ -5,3 +5,6 @@ _default:
 
 speedtest:
 	zsh -c 'for ((i=0;i<20;i++)); do time ./exe.opt -bench 100 >/dev/null; done'
+
+benchlite:
+	zsh -c 'for ((i=0;i<20;i++)); do time ./exe.opt -bench-lite 100000 >/dev/null; done'
