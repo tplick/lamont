@@ -869,7 +869,7 @@ let remove_duplicate_front_bits field =
         | 0 -> 0
         | _ -> remove_bits_if_adjacent_to_right field b1
 
-let is_akq_finesse_in_order first_0 second_0 third_0 fourth_0 suit_mask_0 =
+let is_akq_finesse_in_order_aux first_0 second_0 third_0 fourth_0 suit_mask_0 =
     let first, second, third, fourth =
         (lowest_bit_as_field (first_0 land suit_mask_0),
          second_0 land suit_mask_0,
@@ -886,6 +886,12 @@ let is_akq_finesse_in_order first_0 second_0 third_0 fourth_0 suit_mask_0 =
     get_nth_highest_bit_as_field suit_mask 3 = get_nth_highest_bit_as_field third 2
   then get_nth_highest_bit_as_field third 2
   else 0
+
+let is_akq_finesse_in_order first_0 second_0 third_0 fourth_0 suit_mask_0 =
+    if third_0 land suit_mask_0 > (second_0 lor fourth_0) land suit_mask_0
+        then is_akq_finesse_in_order_aux first_0 second_0 third_0 fourth_0 suit_mask_0
+        else 0
+[@@inline]
 
 let play_specific_bit field bit =
     field land lnot (1 lsl bit)
