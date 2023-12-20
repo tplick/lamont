@@ -139,9 +139,9 @@ let run_lite_benchmark iterations_per_deal =
     for i = 1 to 1000 do
         let d = new_deal () in
         for j = 1 to iterations_per_deal do
-            ignore (count_sequential_tricks_top d)
+            ignore (count_sequential_tricks_top d 13)
         done;
-        Printf.printf "#%d: %d\n%!" i (count_sequential_tricks_top d)
+        Printf.printf "#%d: %d\n%!" i (count_sequential_tricks_top d 13)
     done
 
 let rec process_args next_arg =

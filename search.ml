@@ -895,7 +895,10 @@ let play_specific_bit field bit =
 let play_specific_bit_as_field field play =
     field - play
 
-let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mask_list =
+let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mask_list cap =
+    if cap = 0
+        then 0
+        else
     match suit_mask_list with
         | [] -> 0
         | suit_mask :: suit_masks_rest ->
@@ -908,6 +911,7 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mas
                                                         (play_lowest_if_any opp2 suit_mask)
                                                         full_mask_list
                                                         full_mask_list
+                                                        (cap - 1)
                 | `Partner -> let can_finesse = is_akq_finesse_in_order
                                                     mine  opp1  partners  opp2
                                                     suit_mask in
@@ -919,6 +923,7 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mas
                                                            (play_lowest_if_any opp1 suit_mask)
                                                            full_mask_list
                                                            full_mask_list
+                                                           (cap - 1)
                           | finesse_field ->
                                 let mine_after = play_lowest_if_any mine suit_mask and
                                     opp2_after = play_lowest_if_any opp2 suit_mask in
@@ -929,30 +934,35 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mas
                                                            opp2_after
                                                            (play_lowest_if_any opp1 suit_mask)
                                                            full_mask_list
-                                                           full_mask_list)
+                                                           full_mask_list
+                                                           (cap - 1))
                                     (* second, if opp1 plays high: *)
                              (1 + count_sequential_tricks' (play_highest partners suit_mask)
                                                            mine_after
                                                            opp2_after
                                                            (play_highest opp1 suit_mask)
                                                            full_mask_list
-                                                           full_mask_list)
+                                                           full_mask_list
+                                                           (cap - 1))
                       )
                 | `Neither -> count_sequential_tricks' mine partners opp1 opp2
                                                        suit_masks_rest
                                                        full_mask_list
+                                                       (cap)
 
-let count_sequential_tricks deal suit_mask_list =
+let count_sequential_tricks deal suit_mask_list cap =
     let PackedHand mine = get_packed_hand_to_move deal and
         PackedHand partners = get_partners_packed_hand deal and
         PackedHand opp1 = get_packed_hand_of_next_player deal and
         PackedHand opp2 = get_packed_hand_of_previous_player deal
     in
-    count_sequential_tricks' mine partners opp1 opp2 suit_mask_list suit_mask_list
+    count_sequential_tricks' mine partners opp1 opp2 suit_mask_list suit_mask_list cap
 
-let count_sequential_tricks_top deal =
-    int_max (count_sequential_tricks deal all_suit_masks)
-            (count_sequential_tricks deal all_suit_masks_rev)
+let count_sequential_tricks_top deal cap =
+    let x = (count_sequential_tricks deal all_suit_masks cap) in
+    if x = cap
+        then cap
+        else int_max x (count_sequential_tricks deal all_suit_masks_rev cap)
 
 
 
@@ -972,7 +982,7 @@ let rec play_lowest_exceeding mine others suit_mask previous_tries =
         | None ->
             raise (Failure "play_lowest_exceeding")
 
-let count_sequential_tricks_for_2nd deal suit_mask_list =
+let count_sequential_tricks_for_2nd deal suit_mask_list cap =
     let PackedHand mine = get_packed_hand_to_move deal and
         PackedHand partners = get_partners_packed_hand deal and
         PackedHand opp1 = get_next_opponents_packed_hand deal and
@@ -994,6 +1004,7 @@ let count_sequential_tricks_for_2nd deal suit_mask_list =
                                           opp2
                                           suit_mask_list
                                           suit_mask_list
+                                          (cap - 1)
         else
     if (mine land suit_mask) > 0 && (partners land suit_mask) > (mine land suit_mask) &&
             (partners land suit_mask) > (opp1 land suit_mask) && (partners land suit_mask) > (1 lsl index_of_card card_led)
@@ -1007,12 +1018,15 @@ let count_sequential_tricks_for_2nd deal suit_mask_list =
                                           (play_lowest_if_any opp1 suit_mask)
                                           suit_mask_list
                                           suit_mask_list
+                                          (cap - 1)
         else
     0
 
-let count_sequential_tricks_for_2nd_top deal =
-    int_max (count_sequential_tricks_for_2nd deal all_suit_masks)
-            (count_sequential_tricks_for_2nd deal all_suit_masks_rev)
+let count_sequential_tricks_for_2nd_top deal cap =
+    let x = (count_sequential_tricks_for_2nd deal all_suit_masks cap) in
+    if x = cap
+        then x
+        else int_max x (count_sequential_tricks_for_2nd deal all_suit_masks_rev cap)
 
 let pull_from_tt tts succs middle =
     match tts with
@@ -1295,13 +1309,13 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
         else
 
     if !opt && depth land 3 = 0 && can_return_early iv (depth / 4)
-                                  (count_sequential_tricks_top deal)
+                                  (count_sequential_tricks_top deal (depth / 4))
                                   middle
         then (middle + 1, [])
         else
 
     if !opt && depth land 3 = 3 && can_return_early iv ((depth+3) / 4)
-                                  (count_sequential_tricks_for_2nd_top deal)
+                                  (count_sequential_tricks_for_2nd_top deal ((depth+3)/4))
                                    middle
         then (middle + 1, [])
         else
