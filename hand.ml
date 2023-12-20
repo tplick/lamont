@@ -297,6 +297,16 @@ let all_remaining_packed (Deal d as deal) =
                 -> PackedHand (w lor x lor y lor z lor in_play)
         | _ -> raise (Failure "impossible")
 
+let get_packed_hands_in_circle_from_current (Deal dd) =
+    match dd.d_hands with
+        | [PackedHand a; PackedHand b; PackedHand c; PackedHand d] ->
+            (match dd.d_to_move with
+                | 0 -> (a, b, c, d)
+                | 1 -> (b, c, d, a)
+                | 2 -> (c, d, a, b)
+                | _ -> (d, a, b, c))
+        | _ -> raise (Failure "bad d_hands, not 4 hands")
+
 let are_no_cards_left_between x y deal =
     let x_mask = (1 lsl (index_of_card x)) - 1 and
         y_mask = (1 lsl (index_of_card y + 1)) - 1 in

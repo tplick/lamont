@@ -259,11 +259,8 @@ let count_ace_tricks_between_hands deal =
         else 0
 
 let count_top_tricks_in_packed_hand_to_move deal =
-    let PackedHand mine = get_packed_hand_to_move deal and
-        PackedHand partners = get_partners_packed_hand deal and
-        PackedHand opp1 = get_first_opponents_packed_hand deal and
-        PackedHand opp2 = get_second_opponents_packed_hand deal
-    in List.fold_left (fun acc suit_mask ->
+    let mine, opp1, partners, opp2 = get_packed_hands_in_circle_from_current deal in
+    List.fold_left (fun acc suit_mask ->
         if mine land suit_mask > (partners lor opp1 lor opp2) land suit_mask
             then acc + 1
             else acc)
@@ -381,11 +378,8 @@ let rec count_iter_tricks_in_suit mine partner opp1 opp2 =
     0
 
 let count_iter_tricks deal =
-    let PackedHand mine = get_packed_hand_to_move deal and
-        PackedHand partners = get_partners_packed_hand deal and
-        PackedHand opp1 = get_first_opponents_packed_hand deal and
-        PackedHand opp2 = get_second_opponents_packed_hand deal
-    in List.fold_left (fun acc suit_mask ->
+    let mine, opp1, partners, opp2 = get_packed_hands_in_circle_from_current deal in
+    List.fold_left (fun acc suit_mask ->
         acc + count_iter_tricks_in_suit (mine land suit_mask)
                                         (partners land suit_mask)
                                         (opp1 land suit_mask)
@@ -397,10 +391,7 @@ let count_iter_tricks_as_2nd_hand deal =
     match get_lead deal with
         | None -> raise (Failure "impossible")
         | Some lead ->
-    let PackedHand mine = get_packed_hand_to_move deal and
-        PackedHand partners = get_partners_packed_hand deal and
-        PackedHand opp1 = get_first_opponents_packed_hand deal and
-        PackedHand opp2 = get_second_opponents_packed_hand deal and
+    let mine, opp1, partners, opp2 = get_packed_hands_in_circle_from_current deal and
         lead_mask = 1 lsl index_of_card lead and
         lead_suit_mask = List.nth all_suit_masks (Obj.magic @@ suit_of_card lead) in
     if mine land lead_suit_mask > 0 && partners land lead_suit_mask > 0 &&
@@ -419,10 +410,7 @@ let can_return_early iv tricks_left reeled_off middle =
     in iv + capped_reel - (tricks_left - capped_reel) > middle
 
 let count_top_tricks_in_hand deal =
-    let PackedHand mine = get_packed_hand_to_move deal and
-        PackedHand partners = get_partners_packed_hand deal and
-        PackedHand opp1 = get_first_opponents_packed_hand deal and
-        PackedHand opp2 = get_second_opponents_packed_hand deal in
+    let mine, opp1, partners, opp2 = get_packed_hands_in_circle_from_current deal in
     List.fold_left (fun acc suit_mask ->
         if (mine land suit_mask) > (partners lor opp1 lor opp2) land suit_mask &&
                 count_bits (partners land suit_mask) <= 1 &&
@@ -647,10 +635,7 @@ let rec get_long_suit_tricks_in_suit mine partner opp1 opp2 =
     0
 
 let count_long_suit_tricks_in_hand deal =
-    let PackedHand mine = get_packed_hand_to_move deal and
-        PackedHand partners = get_partners_packed_hand deal and
-        PackedHand opp1 = get_first_opponents_packed_hand deal and
-        PackedHand opp2 = get_second_opponents_packed_hand deal in
+    let mine, opp1, partners, opp2 = get_packed_hands_in_circle_from_current deal in
     List.fold_left (fun acc suit_mask ->
         int_max acc @@ get_long_suit_tricks_in_suit (mine land suit_mask)
                                                     (partners land suit_mask)
@@ -959,11 +944,7 @@ let rec count_sequential_tricks' mine partners opp1 opp2 suit_mask_list full_mas
                                                        (cap)
 
 let count_sequential_tricks deal suit_mask_list cap =
-    let PackedHand mine = get_packed_hand_to_move deal and
-        PackedHand partners = get_partners_packed_hand deal and
-        PackedHand opp1 = get_packed_hand_of_next_player deal and
-        PackedHand opp2 = get_packed_hand_of_previous_player deal
-    in
+    let mine, opp1, partners, opp2 = get_packed_hands_in_circle_from_current deal in
     count_sequential_tricks' mine partners opp1 opp2 suit_mask_list suit_mask_list cap
 
 let count_sequential_tricks_top deal cap =
@@ -991,10 +972,7 @@ let rec play_lowest_exceeding mine others suit_mask previous_tries =
             raise (Failure "play_lowest_exceeding")
 
 let count_sequential_tricks_for_2nd deal suit_mask_list cap =
-    let PackedHand mine = get_packed_hand_to_move deal and
-        PackedHand partners = get_partners_packed_hand deal and
-        PackedHand opp1 = get_next_opponents_packed_hand deal and
-        PackedHand opp2 = get_previous_opponents_packed_hand deal in
+    let mine, opp1, partners, opp2 = get_packed_hands_in_circle_from_current deal in
     match get_lead deal with
         | None -> raise (Failure "count_sequential_tricks_for_2nd called on new trick")
         | Some (Card (suit_led, rank_led) as card_led) ->
