@@ -789,14 +789,7 @@ let rec compare_bit_counts x y =
         | 0, _ -> 1
         | _, _ -> compare_bit_counts (without_lowest_bit x) (without_lowest_bit y)
 
-let can_play_sequential_trick_in_suit mine_all partners_all opp1_all opp2_all suit_mask =
-    let mine = mine_all land suit_mask and
-        partners = partners_all land suit_mask and
-        opp1 = opp1_all land suit_mask and
-        opp2 = opp2_all land suit_mask in
-    if mine lor partners <= opp1 lor opp2
-        then `Neither
-        else
+let can_play_sequential_trick_in_suit_aux mine partners opp1 opp2 suit_mask =
     let bit_compare = compare_bit_counts mine partners in
     if without_lowest_bit mine > 0 && bit_compare > 0 &&
                 mine > (opp1 lor opp2) && mine > lowest_bit_as_field partners
@@ -813,6 +806,16 @@ let can_play_sequential_trick_in_suit mine_all partners_all opp1_all opp2_all su
         then `Partner
         else
     `Neither
+
+let can_play_sequential_trick_in_suit mine_all partners_all opp1_all opp2_all suit_mask =
+    let mine = mine_all land suit_mask and
+        partners = partners_all land suit_mask and
+        opp1 = opp1_all land suit_mask and
+        opp2 = opp2_all land suit_mask in
+    if mine lor partners <= opp1 lor opp2
+        then `Neither
+        else can_play_sequential_trick_in_suit_aux mine partners opp1 opp2 suit_mask
+[@@inline]
 
 (*
 let does_hand_hold_akq field =
@@ -987,7 +990,7 @@ let count_sequential_tricks_for_2nd deal suit_mask_list cap =
     match get_lead deal with
         | None -> raise (Failure "count_sequential_tricks_for_2nd called on new trick")
         | Some (Card (suit_led, rank_led) as card_led) ->
-    let suit_mask = List.nth all_suit_masks (Obj.magic suit_led)
+    let suit_mask = mask_for_suit suit_led
     in
     if (mine land suit_mask) > 0 && (mine land suit_mask) > (partners land suit_mask) &&
             (mine land suit_mask) > (opp1 land suit_mask) && (mine land suit_mask) > (1 lsl index_of_card card_led)
