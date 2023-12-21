@@ -82,48 +82,48 @@ let can_side_to_lead_win_a_trick (Deal d as deal) =
 
 let cards_of_current_side (Deal d) =
     let p = d.d_to_move in
-    match unpack_hand @@ List.nth d.d_hands p,
-          unpack_hand @@ List.nth d.d_hands ((p+2) land 3) with
+    match unpack_hand @@ tuple_nth d.d_hands p,
+          unpack_hand @@ tuple_nth d.d_hands ((p+2) land 3) with
         | Hand h1, Hand h2 -> h1 @ h2
 
 let cards_of_next_player (Deal d) =
     let p = d.d_to_move in
-    match unpack_hand @@ List.nth d.d_hands ((p+1) land 3) with
+    match unpack_hand @@ tuple_nth d.d_hands ((p+1) land 3) with
         | Hand h1 -> h1
 
 let cards_of_other_side (Deal d) =
     let p = d.d_to_move in
-    match unpack_hand @@ List.nth d.d_hands ((p+1) land 3),
-          unpack_hand @@ List.nth d.d_hands ((p+3) land 3) with
+    match unpack_hand @@ tuple_nth d.d_hands ((p+1) land 3),
+          unpack_hand @@ tuple_nth d.d_hands ((p+3) land 3) with
         | Hand h1, Hand h2 -> h1 @ h2
 
 let get_packed_hand_to_move (Deal d) =
-    List.nth d.d_hands d.d_to_move
+    tuple_nth d.d_hands d.d_to_move
 
 let get_partners_packed_hand (Deal d) =
-    List.nth d.d_hands (d.d_to_move lxor 2)
+    tuple_nth d.d_hands (d.d_to_move lxor 2)
 
 let get_first_opponents_packed_hand (Deal d) =
-    List.nth d.d_hands (d.d_to_move lxor 1)
+    tuple_nth d.d_hands (d.d_to_move lxor 1)
 
 let get_second_opponents_packed_hand (Deal d) =
-    List.nth d.d_hands (d.d_to_move lxor 3)
+    tuple_nth d.d_hands (d.d_to_move lxor 3)
 
 let get_packed_hand_of_current_side (Deal d) =
-    match List.nth d.d_hands d.d_to_move,
-          List.nth d.d_hands (d.d_to_move lxor 2) with
+    match tuple_nth d.d_hands d.d_to_move,
+          tuple_nth d.d_hands (d.d_to_move lxor 2) with
         | PackedHand h1, PackedHand h2 -> PackedHand (h1 lor h2)
 
 let get_packed_hand_of_other_side (Deal d) =
-    match List.nth d.d_hands ((d.d_to_move+1) land 3),
-          List.nth d.d_hands ((d.d_to_move+3) land 3) with
+    match tuple_nth d.d_hands ((d.d_to_move+1) land 3),
+          tuple_nth d.d_hands ((d.d_to_move+3) land 3) with
         | PackedHand h1, PackedHand h2 -> PackedHand (h1 lor h2)
 
 let get_packed_hand_of_next_player (Deal d) =
-    List.nth d.d_hands ((d.d_to_move + 1) land 3)
+    tuple_nth d.d_hands ((d.d_to_move + 1) land 3)
 
 let get_packed_hand_of_previous_player (Deal d) =
-    List.nth d.d_hands ((d.d_to_move + 3) land 3)
+    tuple_nth d.d_hands ((d.d_to_move + 3) land 3)
 
 let can_side_win_next_trick (Deal d as deal) =
     let (PackedHand my_cards) = get_packed_hand_to_move deal and
@@ -223,7 +223,7 @@ let rec count_top_tricks = function
     | _ :: xs -> count_top_tricks xs
 
 let get_partners_cards (Deal d) =
-    match unpack_hand @@ List.nth d.d_hands ((d.d_to_move + 2) land 3) with
+    match unpack_hand @@ tuple_nth d.d_hands ((d.d_to_move + 2) land 3) with
         | Hand cards -> cards
 
 let is_every_suit_in_cards cards =
@@ -530,35 +530,43 @@ let canonical_table =
     table
 *)
 
-let canonicalize_hand hand pop_mask =
+let canonicalize_hand (PackedHand hand) pop_mask =
     let make_mask_0 hand' pop_mask' =
         (
             let hand_suit_mask = (hand' lsr 0) land 8191 and
                 pop_suit_mask = (pop_mask' lsr 0) land 8191 in
             let canon_suit_mask = make_canonical_mask pop_suit_mask hand_suit_mask in
             canon_suit_mask) [@@inline]
-    in (make_mask_0 hand pop_mask lsl 0) +
+    in let value =
+       (make_mask_0 hand pop_mask lsl 0) +
        (make_mask_0 (hand lsr 13) (pop_mask lsr 13) lsl 13) +
        (make_mask_0 (hand lsr 26) (pop_mask lsr 26) lsl 26) +
        (make_mask_0 (hand lsr 39) (pop_mask lsr 39) lsl 39)
+    in PackedHand value
 
-let make_deal_canonical (Deal d as deal) =
+let make_deal_canonical (Deal dd as deal) =
     if not !opt
         then deal
         else
-    let hands = d.d_hands and
+    let (a, b, c, d) = dd.d_hands and
         (PackedHand pop_mask) = all_remaining_packed deal in
-    let canon_hands = List.map (fun (PackedHand hand) -> PackedHand (canonicalize_hand hand pop_mask)) hands in
-    Deal {d with d_hands = canon_hands}
+    let canon_hands =
+        (canonicalize_hand a pop_mask,
+         canonicalize_hand b pop_mask,
+         canonicalize_hand c pop_mask,
+         canonicalize_hand d pop_mask) in
+    Deal {dd with d_hands = canon_hands}
 
-let get_hands_from_deal (Deal d) = (* d.d_hands *)
+let get_hands_from_deal (Deal d) = d.d_hands
+(*
     match d.d_hands with
-        | [PackedHand a; PackedHand b; PackedHand c; PackedHand d] -> (a, b, c, d)
+        | (PackedHand a, PackedHand b, PackedHand c, PackedHand d) -> (a, b, c, d)
         | _ -> raise (Failure "impossible")
+*)
 
 let calculate_deal_for_hash (Deal d as deal) =
     match (get_hands_from_deal @@ make_deal_canonical deal) with
-        | (w, x, y, z) ->
+        | (PackedHand w, PackedHand x, PackedHand y, PackedHand z) ->
             let result = (w - x lsl 1 + y lsl 2 - z lsl 3 + d.d_to_move lsl 60, x, y, z)
             in d.d_deal_for_hash <- Some result;
             result
@@ -971,10 +979,10 @@ let count_sequential_tricks_top deal cap =
 
 
 let get_next_opponents_packed_hand (Deal d) =
-    List.nth d.d_hands ((d.d_to_move + 1) land 3)
+    tuple_nth d.d_hands ((d.d_to_move + 1) land 3)
 
 let get_previous_opponents_packed_hand (Deal d) =
-    List.nth d.d_hands ((d.d_to_move + 3) land 3)
+    tuple_nth d.d_hands ((d.d_to_move + 3) land 3)
 
 let rec play_lowest_exceeding mine others suit_mask previous_tries =
     match get_lowest_bit ((mine land lnot previous_tries) land suit_mask) with
@@ -1118,7 +1126,7 @@ let code_for_player player = String.make 1 "WNES".[player]
 
 let code_for_hands packed_hands =
     let holder_of_card card_idx =
-        (let indices = List.filter (fun player -> let PackedHand ph = List.nth packed_hands player in ph land (1 lsl card_idx) <> 0) [0; 1; 2; 3]
+        (let indices = List.filter (fun player -> let PackedHand ph = tuple_nth packed_hands player in ph land (1 lsl card_idx) <> 0) [0; 1; 2; 3]
          in match indices with
             | x :: xs -> Some x
             | [] -> None)
@@ -1171,8 +1179,8 @@ let print_recom_history () = ()
       recommendation_history
 *)
 let symmetric_tricks_for_opponents_in_suit (Deal d as deal) suit_mask =
-    let PackedHand opp1 = List.nth d.d_hands (d.d_to_move lxor 1) and
-        PackedHand opp2 = List.nth d.d_hands (d.d_to_move lxor 3) and
+    let PackedHand opp1 = tuple_nth d.d_hands (d.d_to_move lxor 1) and
+        PackedHand opp2 = tuple_nth d.d_hands (d.d_to_move lxor 3) and
         PackedHand ours = get_packed_hand_of_current_side deal
     in
     if opp1 land suit_mask <> 0 &&

@@ -22,7 +22,11 @@ let permute_hand perm (Hand h) =
     Hand (List.map (permute_card perm) h)
 
 let permute_deal perm (Deal d) =
-    Deal {d with d_hands = List.map (fun hand -> pack_hand @@ permute_hand perm @@ unpack_hand hand) d.d_hands}
+    Deal {d with d_hands =
+        match List.map (fun hand -> pack_hand @@ permute_hand perm @@ unpack_hand hand) (match d.d_hands with (a, b, c, d) -> [a; b; c; d]) with
+            | [a; b; c; d] -> (a, b, c, d)
+            | _ -> raise (Failure "impossible")
+    }
 
 let analyze_deal deal counter idx =
     print_deal deal;

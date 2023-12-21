@@ -110,12 +110,22 @@ let unpack_hand (PackedHand mask0) =
     done;
     Hand !h
 
-let pack_hands = List.map pack_hand
-let unpack_hands = List.map unpack_hand
+let pack_hands list =
+    match List.map pack_hand list with
+        | [a; b; c; d] -> (a, b, c, d)
+        | _ -> raise (Failure "bad argument to pack_hands")
+let unpack_hands (a, b, c, d) =
+    List.map unpack_hand [a; b; c; d]
 
+let tuple_nth (a, b, c, d) n =
+    match n with
+        | 0 -> a
+        | 1 -> b
+        | 2 -> c
+        | _ -> d
 
 type deal = Deal of {
-    d_hands: packed_hand list;
+    d_hands: packed_hand * packed_hand * packed_hand * packed_hand;
     d_to_move: int;
     d_played: card list;
     d_tricks: int * int;
@@ -164,7 +174,7 @@ and get_lead' = function
 
 
 let get_playable_cards (Deal d as deal) =
-    let (PackedHand mask as ph) = List.nth d.d_hands d.d_to_move in
+    let (PackedHand mask as ph) = tuple_nth d.d_hands d.d_to_move in
     if d.d_turns land 3 = 0
         then cards_in_hand @@ unpack_hand ph
         else
@@ -191,7 +201,7 @@ let hand_without_card card (Hand h) =
     in Hand (hand_without_card' card h)
 
 let packed_hand_without_card card (PackedHand ph) =
-    PackedHand (ph land (lnot (1 lsl index_of_card card)))
+    PackedHand (ph - (1 lsl index_of_card card))
 
 let rec rotate_to_front list elt acc =
     match list with
@@ -242,13 +252,22 @@ let is_new_trick (Deal d) =
     d.d_turns land 3 = 0
 
 let rec hands_after_playing hands (Deal d as deal) card idx =
+    let (a, b, c, d) = d.d_hands in
+    (
+        (if idx = 0 then packed_hand_without_card card a else a),
+        (if idx = 1 then packed_hand_without_card card b else b),
+        (if idx = 2 then packed_hand_without_card card c else c),
+        (if idx = 3 then packed_hand_without_card card d else d)
+    )
+(*
     if idx = d.d_to_move
         then packed_hand_without_card card (List.hd hands) :: List.tl hands
         else List.hd hands :: hands_after_playing (List.tl hands) deal card (idx + 1)
+*)
 
 let deal_after_playing card (Deal d as deal) =
     let child = Deal {
-        d with d_hands = hands_after_playing d.d_hands deal card 0
+        d with d_hands = hands_after_playing d.d_hands deal card d.d_to_move
                          (* List.mapi (fun idx h ->
                             if d.d_to_move = idx
                                 then hand_without_card card h
@@ -293,13 +312,13 @@ let all_remaining_packed (Deal d as deal) =
             then 0
             else List.fold_left (fun acc card -> acc lor (1 lsl index_of_card card)) 0 d.d_played
     in match d.d_hands with
-        | [PackedHand w; PackedHand x; PackedHand y; PackedHand z]
+        | (PackedHand w, PackedHand x, PackedHand y, PackedHand z)
                 -> PackedHand (w lor x lor y lor z lor in_play)
         | _ -> raise (Failure "impossible")
 
 let get_packed_hands_in_circle_from_current (Deal dd) =
     match dd.d_hands with
-        | [PackedHand a; PackedHand b; PackedHand c; PackedHand d] ->
+        | (PackedHand a, PackedHand b, PackedHand c, PackedHand d) ->
             (match dd.d_to_move with
                 | 0 -> (a, b, c, d)
                 | 1 -> (b, c, d, a)
