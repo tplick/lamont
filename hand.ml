@@ -251,13 +251,15 @@ let end_trick (Deal d as deal) =
 let is_new_trick (Deal d) =
     d.d_turns land 3 = 0
 
-let rec hands_after_playing hands (Deal d) card idx =
-    let (a, b, c, d) = d.d_hands in
+let rec hands_after_playing hands (Deal d) card =
+    let (a, b, c, d) = d.d_hands and
+        mask = lnot (1 lsl index_of_card card) and
+        packed_hand_land x (PackedHand y) = PackedHand (x land y) in
     (
-        (if idx = 0 then packed_hand_without_card card a else a),
-        (if idx = 1 then packed_hand_without_card card b else b),
-        (if idx = 2 then packed_hand_without_card card c else c),
-        (if idx = 3 then packed_hand_without_card card d else d)
+        (packed_hand_land mask a),
+        (packed_hand_land mask b),
+        (packed_hand_land mask c),
+        (packed_hand_land mask d)
     )
 (*
     if idx = d.d_to_move
@@ -267,7 +269,7 @@ let rec hands_after_playing hands (Deal d) card idx =
 
 let deal_after_playing card (Deal d as deal) =
     let child = Deal {
-        d with d_hands = hands_after_playing d.d_hands deal card d.d_to_move
+        d with d_hands = hands_after_playing d.d_hands deal card
                          (* List.mapi (fun idx h ->
                             if d.d_to_move = idx
                                 then hand_without_card card h
