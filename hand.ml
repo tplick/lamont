@@ -251,7 +251,7 @@ let end_trick (Deal d as deal) =
 let is_new_trick (Deal d) =
     d.d_turns land 3 = 0
 
-let rec hands_after_playing hands (Deal d as deal) card idx =
+let rec hands_after_playing hands (Deal d) card idx =
     let (a, b, c, d) = d.d_hands in
     (
         (if idx = 0 then packed_hand_without_card card a else a),
@@ -314,7 +314,6 @@ let all_remaining_packed (Deal d as deal) =
     in match d.d_hands with
         | (PackedHand w, PackedHand x, PackedHand y, PackedHand z)
                 -> PackedHand (w lor x lor y lor z lor in_play)
-        | _ -> raise (Failure "impossible")
 
 let get_packed_hands_in_circle_from_current (Deal dd) =
     match dd.d_hands with
@@ -324,7 +323,6 @@ let get_packed_hands_in_circle_from_current (Deal dd) =
                 | 1 -> (b, c, d, a)
                 | 2 -> (c, d, a, b)
                 | _ -> (d, a, b, c))
-        | _ -> raise (Failure "bad d_hands, not 4 hands")
 
 let are_no_cards_left_between x y (PackedHand remaining) =
     let x_mask = (1 lsl (index_of_card x)) - 1 and
