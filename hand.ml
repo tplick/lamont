@@ -307,28 +307,28 @@ let get_packed_hands_in_circle_from_current (Deal dd) =
                 | _ -> (d, a, b, c))
         | _ -> raise (Failure "bad d_hands, not 4 hands")
 
-let are_no_cards_left_between x y deal =
+let are_no_cards_left_between x y (PackedHand remaining) =
     let x_mask = (1 lsl (index_of_card x)) - 1 and
         y_mask = (1 lsl (index_of_card y + 1)) - 1 in
-    let diff_mask = x_mask lxor y_mask and
-       PackedHand remaining = all_remaining_packed deal in
+    let diff_mask = x_mask lxor y_mask in
     diff_mask land remaining = 0
 
-let rec remove_equals_from_cards deal cards =
+let rec remove_equals_from_cards remaining cards =
     match cards with
         | [] | [_] -> cards
         | x :: y :: cards when are_cards_adjacent x y
-              -> remove_equals_from_cards deal (y :: cards)
+              -> remove_equals_from_cards remaining (y :: cards)
         | x :: y :: cards when suit_of_card x = suit_of_card y &&
-                               are_no_cards_left_between x y deal
-              -> remove_equals_from_cards deal (y :: cards)
-        | x :: xs -> x :: remove_equals_from_cards deal xs
+                               are_no_cards_left_between x y remaining
+              -> remove_equals_from_cards remaining (y :: cards)
+        | x :: xs -> x :: remove_equals_from_cards remaining xs
 
 let successors_of_deal (Deal d as deal) =
     List.map (fun card -> deal_after_playing card deal) (get_playable_cards deal)
 
 let successors_of_deal_without_equals (Deal d as deal) =
-    List.map (fun card -> deal_after_playing card deal) (remove_equals_from_cards deal @@ get_playable_cards deal)
+    List.map (fun card -> deal_after_playing card deal)
+             (remove_equals_from_cards (all_remaining_packed deal) @@ get_playable_cards deal)
 
 let sorted_successors_of_deal (Deal d as deal) =
     let successors = List.sort
