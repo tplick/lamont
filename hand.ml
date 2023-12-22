@@ -308,7 +308,7 @@ let card_currently_winning (Deal d as deal) =
                     d.d_played
             in Some winner
 
-let card_currently_winning_with_led_suit (Deal d as deal) led_suit =
+let card_currently_winning_with_led_suit (Deal d) led_suit =
     match led_suit with
         | None -> None
         | Some suit ->
