@@ -1098,12 +1098,21 @@ let restrict_packed_hand_to_suit (PackedHand ph) suit_mask =
         then PackedHand ph
         else PackedHand overlap
 
+let get_my_and_partners_packed_hands (Deal d) =
+    match d.d_to_move, d.d_hands with
+        | 0, (w, _, x, _) -> w, x
+        | 1, (_, w, _, x) -> w, x
+        | 2, (x, _, w, _) -> w, x
+        | _, (_, x, _, w) -> w, x
+[@@inline]
+
 let make_recom_key (Deal d as deal) =
     let led_suit = get_suit_led deal in
     let led_suit_mask = mask_for_suit_option led_suit in
-    let a = restrict_packed_hand_to_suit (get_packed_hand_to_move deal) led_suit_mask and
+    let mine, partners = get_my_and_partners_packed_hands deal in
+    let a = restrict_packed_hand_to_suit mine led_suit_mask and
         b = (let x = highest_bit_as_field
-                    (match restrict_packed_hand_to_suit (get_partners_packed_hand deal)
+                    (match restrict_packed_hand_to_suit partners
                                                         led_suit_mask
                      with PackedHand x -> x)
              in let y = x - 1
