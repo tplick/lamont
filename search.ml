@@ -1088,17 +1088,33 @@ let sort_first_different_suits (first, second) =
     (first) @
     sort_suits_backwards (first) (List.rev second)
 
+let mask_for_suit_option = function
+    | Some suit -> mask_for_suit suit
+    | None -> -1
+
+let restrict_packed_hand_to_suit (PackedHand ph) suit_mask =
+    let overlap = ph land suit_mask in
+    if overlap = 0
+        then PackedHand ph
+        else PackedHand overlap
 
 let make_recom_key (Deal d as deal) =
-    let a = get_restricted_packed_hand_to_move deal and
-        b = (match get_highest_bit (match get_restricted_partners_packed_hand deal with PackedHand x -> x) with
-                | Some i -> i
-                | None -> 52) and
-        c = (match card_currently_winning deal with Some card -> index_of_card card | None -> 52) and
-        d = (match get_suit_led deal with None -> 4 | Some suit -> Obj.magic suit) and
+    let led_suit = get_suit_led deal in
+    let led_suit_mask = mask_for_suit_option led_suit in
+    let a = restrict_packed_hand_to_suit (get_packed_hand_to_move deal) led_suit_mask and
+        b = (let x = highest_bit_as_field
+                    (match restrict_packed_hand_to_suit (get_restricted_partners_packed_hand deal)
+                                                        led_suit_mask
+                     with PackedHand x -> x)
+             in let y = x - 1
+             in let z = y lxor (y lsr 26)
+             in z) and
+        c = (match card_currently_winning_with_led_suit deal led_suit with
+                Some card -> index_of_card card | None -> 52) and
+        d = (match led_suit with None -> 4 | Some suit -> Obj.magic suit) and
         e = (if is_top_card_winning_true deal then 1 lsl 24 else 0) and
         f = d.d_to_move
-    in (a, b + c lsl 6 + d lsl 12 + f lsl 18 + e)
+    in (a, b lsl 25 + c lsl 6 + d lsl 12 + f lsl 18 + e)
 
 let reset_suit_ordering player = ()
 (*

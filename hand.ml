@@ -308,6 +308,21 @@ let card_currently_winning (Deal d as deal) =
                     d.d_played
             in Some winner
 
+let card_currently_winning_with_led_suit (Deal d as deal) led_suit =
+    match led_suit with
+        | None -> None
+        | Some suit ->
+            let lead = Card (suit, R2) in
+            let winner =
+                List.fold_left
+                    (fun old_c new_c ->
+                        if suit_of_card new_c = suit_of_card old_c && rank_of_card new_c > rank_of_card old_c
+                            then new_c
+                            else old_c)
+                    lead
+                    d.d_played
+            in Some winner
+
 let all_remaining_packed (Deal d as deal) =
     let in_play =
         if is_new_trick deal
