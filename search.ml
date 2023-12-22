@@ -1103,7 +1103,7 @@ let make_recom_key (Deal d as deal) =
     let led_suit_mask = mask_for_suit_option led_suit in
     let a = restrict_packed_hand_to_suit (get_packed_hand_to_move deal) led_suit_mask and
         b = (let x = highest_bit_as_field
-                    (match restrict_packed_hand_to_suit (get_restricted_partners_packed_hand deal)
+                    (match restrict_packed_hand_to_suit (get_partners_packed_hand deal)
                                                         led_suit_mask
                      with PackedHand x -> x)
              in let y = x - 1
