@@ -131,6 +131,7 @@ type deal = Deal of {
     d_tricks: int * int;
     d_turns: int;
     d_last_play: card option;
+    d_pred: deal;
     mutable d_deal_for_hash: (int * int * int * int) option
 }
 
@@ -143,26 +144,30 @@ and deal_hands' a b c d = function
 
 let new_deal () =
     let (a, b, c, d) = deal_hands ()
-    in Deal {
+    in let rec r = Deal {
         d_hands = pack_hands [Hand a; Hand b; Hand c; Hand d];
         d_to_move = 0;
         d_played = [];
         d_tricks = (0, 0);
         d_turns = 0;
         d_last_play = None;
+        d_pred = r;
         d_deal_for_hash = None
     }
+    in r
 
 let new_deal_with_hands hands =
-    Deal {
+    let rec r = Deal {
         d_hands = pack_hands hands;
         d_to_move = 0;
         d_played = [];
         d_tricks = (0, 0);
         d_turns = 0;
         d_last_play = None;
+        d_pred = r;
         d_deal_for_hash = None
     }
+    in r
 
 
 let rec get_lead (Deal deal) =
@@ -279,6 +284,7 @@ let deal_after_playing card (Deal d as deal) =
                d_to_move = (d.d_to_move + 1) land 3;
                d_turns = d.d_turns + 1;
                d_last_play = Some card;
+               d_pred = deal;
                d_deal_for_hash = None
     }
     in end_trick child

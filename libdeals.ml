@@ -10006,13 +10006,15 @@ let canned_hands_array = [|
 let make_canned_deal idx =
     let (w, x, y) = canned_hands_array.(idx - 1) in
     let z = w lxor x lxor y lxor ((1 lsl 52) - 1) in
-    Deal {
+    let rec r = Deal {
         d_hands = (PackedHand w, PackedHand x, PackedHand y, PackedHand z);
         d_to_move = 0;
         d_played = [];
         d_tricks = (0, 0);
         d_turns = 0;
         d_last_play = None;
+        d_pred = r;
         d_deal_for_hash = None
     }
+    in r
 
