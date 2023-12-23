@@ -44,21 +44,18 @@ let run_benchmark limit =
     let counter = ref 0 in
     for i = 1 to limit do
         Printf.printf "#%d\n" i;
-        let d = new_deal ()
+        let d = make_canned_deal i
         in analyze_deal (permute_deal !permutation d) counter i;
         Printf.printf "\n"
     done;
     Printf.printf "Saw %d nodes.\n" !counter
 
 let run_single idx =
-    let counter = ref 0 in
-    for i = 1 to idx do
-        let d = new_deal ()
-        in if i = idx then
-            (Printf.printf "#%d\n" i;
-             analyze_deal (permute_deal !permutation d) counter i;
-             Printf.printf "\n")
-    done;
+    let counter = ref 0 and
+        d = make_canned_deal idx in
+    (Printf.printf "#%d\n" idx;
+     analyze_deal (permute_deal !permutation d) counter idx;
+     Printf.printf "\n");
     Printf.printf "Saw %d nodes.\n" !counter
 
 let all_cards_with_suit suit = List.filter (fun card -> suit_of_card card = suit) new_deck
@@ -148,6 +145,16 @@ let run_lite_benchmark iterations_per_deal =
         Printf.printf "#%d: %d\n%!" i (count_sequential_tricks_top d 13)
     done
 
+let print_benchmark_hands () =
+    let print_hand (Deal d) =
+        let PackedHand w, PackedHand x, PackedHand y, PackedHand z = d.d_hands
+        in Printf.printf "    (%d, %d, %d);\n" w x y
+    in
+    for i = 1 to 10000 do
+        let d = new_deal () in
+        print_hand d
+    done
+
 let rec process_args next_arg =
     let next () = process_args next_arg
     in match next_arg () with
@@ -178,6 +185,7 @@ let rec process_args next_arg =
         | "-test-fold" -> test_fold_alg 100000000
         | "-play-test" -> play_test_with_deal (get_generated_deal (int_of_string @@ next_arg ()))
         | "-bench-lite" -> run_lite_benchmark (int_of_string @@ next_arg ())
+        | "-print-hands" -> print_benchmark_hands ()
         | _ -> Printf.printf "Bad arguments.\n"
 
 let _ =
