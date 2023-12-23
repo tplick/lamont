@@ -3,6 +3,7 @@ let report_recs = ref false
 let report_rec_history = ref false
 let show_missed_runs = ref false
 let opt = ref true
+let show_progress = ref true
 
 let int_min (x : int) (y : int) = if x <= y then x else y
 let int_max (x : int) (y : int) = if x >= y then x else y
@@ -1375,8 +1376,8 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     let iter_body =
                 (fun succ ->
                              if !best_value > middle
-                                then (if depth = topdepth && topdepth >= -36 then (if not !has_printed_excl then (Printf.printf "!"; has_printed_excl := true); Printf.printf " [%s]%!" (string_of_card @@ extract aos (get_last_play succ))))
-                                else (if depth = topdepth && topdepth >= -36 then Printf.printf " %s...%!" (string_of_card @@ extract aos (get_last_play succ));
+                                then (if depth = topdepth && topdepth >= -36 then (if not !has_printed_excl && !show_progress then (Printf.printf "!"; has_printed_excl := true); if !show_progress then Printf.printf " [%s]%!" (string_of_card @@ extract aos (get_last_play succ))))
+                                else (if depth = topdepth && topdepth >= -36 && !show_progress then Printf.printf " %s...%!" (string_of_card @@ extract aos (get_last_play succ));
                              let value, variation = evaluate_deal_gamma topdepth counter (List.tl tts) succ (depth - 1)
                                                     (if same_sides_in_deals deal succ then middle else -middle)
                              in let adjusted_value = (if same_sides_in_deals deal succ then value else -value)
@@ -1413,7 +1414,7 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                               (sort_kicked_by_ordering (List.rev sorted_successors) suit_ordering.(d.d_to_move)))
                 in if not !opt then assert (List.sort compare succs_to_pass = List.sort compare raw_successors);
                 succs_to_pass));
-    (if depth = topdepth && topdepth >= -36 then Printf.printf "\n%!");
+    (if depth = topdepth && topdepth >= -36 && !show_progress then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
      match !best_variation with
         | x :: _ -> (match recommendation with Some y -> y := x | None -> RecHashtbl.replace recommendation_table (make_recom_key deal) (ref x));
@@ -1502,13 +1503,15 @@ let evaluate_deal_gamma_top counter deal depth idx =
                         evaluate_deal_gamma d counter tower deal d !middle
                  in (clean_tt_tower tower (if new_middle > !middle then (<=) else (>=)) !middle;
                      middle := new_middle; variation := new_variation; ledger := new_middle :: !ledger;
-                     Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (RecHashtbl.length recommendation_table);
+                     if !show_progress
+                        then Printf.printf "gamma depth %d: value %d, cumul nodes %d, rec table has %d entries\n%!" d new_middle !counter (RecHashtbl.length recommendation_table);
                      set_ordering_from_variation new_variation;
                      if !show_missed_runs && new_middle = d / 4 && !counter > new_middle
                             then Printf.printf "@@@\n%!"))
     done;
-    Printf.printf "#%d: " (idx);
-    print_ledger true @@ List.rev !ledger;
+    if !show_progress
+        then (Printf.printf "#%d: " (idx);
+              print_ledger true @@ List.rev !ledger);
     (* print_tally_of_recommended_suits (); *)
-    (!middle, !variation), !counter
+    (!middle, !variation), !counter, (List.rev !ledger)
 

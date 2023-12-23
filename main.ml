@@ -36,7 +36,7 @@ let analyze_deal deal counter idx =
         in Printf.printf "alpha depth %d: value %d, nodes %d\n%!" depth value node_count;
            counter := !counter + node_count))
         [4; 8];
-    let (value, variation), node_count = evaluate_deal_gamma_top (ref 0) deal 52 idx
+    let (value, variation), node_count, _ = evaluate_deal_gamma_top (ref 0) deal 52 idx
     in (* Printf.printf "gamma depth %d: value %d, nodes %d\n%!" 52 value node_count; *)
        counter := !counter + node_count
 
@@ -155,6 +155,18 @@ let print_benchmark_hands () =
         print_hand d
     done
 
+let run_quick_tests () =
+    show_progress := false;
+    for idx = 1 to 20 do
+        let deal = make_canned_deal idx in
+        let _, _, ledger = evaluate_deal_gamma_top (ref 0) deal 52 idx in
+        if ledger = List.nth signatures_of_first_deals (idx-1)
+            then (Printf.printf "Deal #%d OK...\n%!" idx)
+            else (Printf.printf "Signature mismatch on deal #%d!\n" idx;
+                  exit 1)
+    done;
+    Printf.printf "All tests were successful.\n%!"
+
 let rec process_args next_arg =
     let next () = process_args next_arg
     in match next_arg () with
@@ -186,6 +198,7 @@ let rec process_args next_arg =
         | "-play-test" -> play_test_with_deal (get_generated_deal (int_of_string @@ next_arg ()))
         | "-bench-lite" -> run_lite_benchmark (int_of_string @@ next_arg ())
         | "-print-hands" -> print_benchmark_hands ()
+        | "-quick-test" -> run_quick_tests ()
         | _ -> Printf.printf "Bad arguments.\n"
 
 let _ =
