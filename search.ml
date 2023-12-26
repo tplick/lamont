@@ -1276,6 +1276,9 @@ let tricks_before_losing_one deal =
         then Some (number_of_highest_cards_held_by_current_side deal)
         else None
 
+let tuple_for_deal (Deal d) =
+    (d.d_hands, d.d_to_move, d.d_played, d.d_tricks, d.d_turns, d.d_last_play, d.d_deal_for_hash)
+
 let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
     incr counter;
     if depth = 0
@@ -1412,7 +1415,8 @@ let rec evaluate_deal_gamma topdepth counter tts (Deal d as deal) depth middle =
                     | _ -> (* let pulled, kicked = postpone_double_suits [] [] (List.rev sorted_successors)
                            in *)
                               (sort_kicked_by_ordering (List.rev sorted_successors) suit_ordering.(d.d_to_move)))
-                in if not !opt then assert (List.sort compare succs_to_pass = List.sort compare raw_successors);
+                in if not !opt then assert (List.sort compare (List.map tuple_for_deal succs_to_pass) =
+                                            List.sort compare (List.map tuple_for_deal raw_successors));
                 succs_to_pass));
     (if depth = topdepth && topdepth >= -36 && !show_progress then Printf.printf "\n%!");
     (if depth land 3 <> 1 || depth <= 12 then
