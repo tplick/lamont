@@ -484,12 +484,18 @@ let get_suit_led deal =
         | None -> None
 
 let bitcount_array =
-    let array = Array.make 128 0 in
+    let array = Array.make 8192 0 in
     array.(0) <- 0;
-    for i = 1 to 127 do
+    for i = 1 to 8191 do
         array.(i) <- array.(i/2) + (i land 1)
     done;
     array
+
+let push_bits_right_array =
+    Array.init
+        8192
+        (fun x -> let n = bitcount_array.(x)
+                  in (1 lsl n) - 1)
 
 let make_canonical_mask_from_scratch pop_suit_mask hand_suit_mask =
     let mask = ref 0 in
@@ -531,7 +537,7 @@ let canonical_table =
     table
 *)
 
-let canonicalize_hand (PackedHand hand) pop_mask =
+let canonicalize_hand hand pop_mask =
     let make_mask_0 hand' pop_mask' =
         (
             let hand_suit_mask = (hand' lsr 0) land 8191 and
@@ -545,18 +551,29 @@ let canonicalize_hand (PackedHand hand) pop_mask =
        (make_mask_0 (hand lsr 39) (pop_mask lsr 39) lsl 39)
     in PackedHand value
 
+let canonicalize_entire_suit pop_mask shift =
+    let suit_holding = (pop_mask lsr shift) land 8191
+    in push_bits_right_array.(suit_holding) lsl shift
+[@@inline]
+
+let canonicalize_entire_hand pop_mask =
+    canonicalize_entire_suit pop_mask 0 lor
+    canonicalize_entire_suit pop_mask 13 lor
+    canonicalize_entire_suit pop_mask 26 lor
+    canonicalize_entire_suit pop_mask 39
+
 let make_deal_canonical (Deal dd as deal) =
     if not !opt
-        then deal
+        then dd.d_hands
         else
-    let (a, b, c, d) = dd.d_hands and
-        (PackedHand pop_mask) = all_remaining_packed deal in
-    let canon_hands =
+    let (PackedHand a, PackedHand b, PackedHand c, PackedHand d) = dd.d_hands in
+    let pop_mask = a lor b lor c lor d in
+    let (PackedHand w, PackedHand x, PackedHand y) =
         (canonicalize_hand a pop_mask,
          canonicalize_hand b pop_mask,
-         canonicalize_hand c pop_mask,
-         canonicalize_hand d pop_mask) in
-    Deal {dd with d_hands = canon_hands}
+         canonicalize_hand c pop_mask) in
+    let z = (canonicalize_entire_hand pop_mask) - (w lor x lor y) in
+    (PackedHand w, PackedHand x, PackedHand y, PackedHand z)
 
 let get_hands_from_deal (Deal d) = d.d_hands
 (*
@@ -566,7 +583,7 @@ let get_hands_from_deal (Deal d) = d.d_hands
 *)
 
 let calculate_deal_for_hash (Deal d as deal) =
-    match (get_hands_from_deal @@ make_deal_canonical deal) with
+    match (make_deal_canonical deal) with
         | (PackedHand w, PackedHand x, PackedHand y, PackedHand z) ->
             let result = (w - x lsl 1 + y lsl 2 - z lsl 3 + d.d_to_move lsl 60, x, y, z)
             in d.d_deal_for_hash <- Some result;
