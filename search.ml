@@ -562,7 +562,7 @@ let canonicalize_entire_hand pop_mask =
     canonicalize_entire_suit pop_mask 26 lor
     canonicalize_entire_suit pop_mask 39
 
-let make_deal_canonical (Deal dd as deal) =
+let make_deal_canonical (Deal dd) =
     if not !opt
         then dd.d_hands
         else
