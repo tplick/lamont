@@ -36,11 +36,12 @@ uint64_t vector_pext(uint64_t pop_mask, uint64_t set_mask)
     }
 
     uint64_t result = 0LL;
-
+/*
     for (i = 0; i < 8; i++){
         result <<= popcount_vec[7-i];
         result += result_vec[7-i];
     }
+*/
 
 /*
     volatile uint8_t popcount_array[8], result_array[8];
@@ -52,6 +53,18 @@ uint64_t vector_pext(uint64_t pop_mask, uint64_t set_mask)
         result += result_array[7-i];
     }
 */
+
+    uint64_t popcount_field = (uint64_t) vrev64_u8(popcount_vec),
+             result_field = (uint64_t) vrev64_u8(result_vec);
+
+    for (i = 0; i < 8; i++){
+        result <<= (popcount_field & 255);
+        result += (result_field & 255);
+
+        popcount_field >>= 8;
+        result_field >>= 8;
+    }
+
     return result;
 }
 
