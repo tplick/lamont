@@ -562,18 +562,31 @@ let canonicalize_entire_hand pop_mask =
     canonicalize_entire_suit pop_mask 26 lor
     canonicalize_entire_suit pop_mask 39
 
+let suit_count pop_mask shift =
+    bitcount_array.((pop_mask lsr shift) land 8191)
+[@@inline]
+
+external vec_pext : int -> int -> int = "vector_pext_stub" [@@noalloc]
+
 let make_deal_canonical (Deal dd) =
     if not !opt
         then dd.d_hands
         else
     let (PackedHand a, PackedHand b, PackedHand c, PackedHand d) = dd.d_hands in
     let pop_mask = a lor b lor c lor d in
-    let (PackedHand w, PackedHand x, PackedHand y) =
-        (canonicalize_hand a pop_mask,
-         canonicalize_hand b pop_mask,
-         canonicalize_hand c pop_mask) in
-    let z = (canonicalize_entire_hand pop_mask) - (w lor x lor y) in
-    (PackedHand w, PackedHand x, PackedHand y, PackedHand z)
+    let (w, x, y) =
+                (vec_pext pop_mask a,
+                 vec_pext pop_mask b,
+                 vec_pext pop_mask c) and
+        (r, s, t, u) = (suit_count pop_mask 0,
+                        suit_count pop_mask 13,
+                        suit_count pop_mask 26,
+                        suit_count pop_mask 39) in
+    let z = ((1 lsl (r + s + t + u)) - 1) lxor w lxor x lxor y in
+    (PackedHand (w + r lsl 52),
+     PackedHand (x + s lsl 52),
+     PackedHand (y + t lsl 52),
+     PackedHand (z + u lsl 52))
 
 let get_hands_from_deal (Deal d) = d.d_hands
 (*
