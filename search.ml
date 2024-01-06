@@ -567,6 +567,8 @@ let suit_count pop_mask shift =
 [@@inline]
 
 external vec_pext : int -> int -> int = "vector_pext_stub" [@@noalloc]
+external vec_pext_3 : int -> int -> int -> int -> unit = "vector_pext_3_stub" [@@noalloc]
+external vec_pext_3_retrieve : int -> int = "vector_pext_3_retrieve" [@@noalloc]
 
 let make_deal_canonical (Deal dd) =
     if not !opt
@@ -575,9 +577,8 @@ let make_deal_canonical (Deal dd) =
     let (PackedHand a, PackedHand b, PackedHand c, PackedHand d) = dd.d_hands in
     let pop_mask = a lor b lor c lor d in
     let (w, x, y) =
-                (vec_pext pop_mask a,
-                 vec_pext pop_mask b,
-                 vec_pext pop_mask c) and
+                (vec_pext_3 pop_mask a b c;
+                 (vec_pext_3_retrieve 0, vec_pext_3_retrieve 1, vec_pext_3_retrieve 2)) and
         (r, s, t, u) = (suit_count pop_mask 0,
                         suit_count pop_mask 13,
                         suit_count pop_mask 26,
