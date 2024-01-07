@@ -50,33 +50,47 @@ uint64_t vector_pext(uint64_t pop_mask, uint64_t set_mask)
     return result;
 }
 
+uint8x16_t separate(uint64_t mask)
+{
+    const uint64_t low_nibbles = 0x0f0f0f0f0f0f0f0fULL;
+    return vcombine_u8((uint8x8_t)(mask & low_nibbles),
+                       (uint8x8_t)((mask >> 4) & low_nibbles));
+}
+
+uint8x8_t rejoin(uint8x16_t r_vec, uint8x8_t popcount_vec)
+{
+    uint8x8_t low = vrev64_u8(vget_low_u8(r_vec)),
+              high = vrev64_u8(vget_high_u8(r_vec));
+    return low + (high << popcount_vec);
+}
+
 void vector_pext_3(uint64_t result_array[],
                    uint64_t pop_mask,
                    uint64_t a_mask, uint64_t b_mask, uint64_t c_mask)
 {
-    uint8x8_t pop_vec = (uint8x8_t) pop_mask,
-              a_vec = (uint8x8_t) a_mask,
-              b_vec = (uint8x8_t) b_mask,
-              c_vec = (uint8x8_t) c_mask,
-              ra_vec = {0},
-              rb_vec = {0},
-              rc_vec = {0},
-              clz_vec,
-              clo_vec,
-              clb_vec,
-              popcount_vec;
+    uint8x16_t pop_vec = separate(pop_mask),
+               a_vec = separate(a_mask),
+               b_vec = separate(b_mask),
+               c_vec = separate(c_mask),
+               ra_vec = {0},
+               rb_vec = {0},
+               rc_vec = {0},
+               clz_vec,
+               clo_vec,
+               clb_vec,
+               popcount_vec;
 
     a_vec &= pop_vec;
     b_vec &= pop_vec;
     c_vec &= pop_vec;
-    popcount_vec = vcnt_u8(pop_vec);
+    popcount_vec = vcntq_u8(pop_vec);
 
     int i, rounds;
 
-    for (rounds = 0; rounds < 4; rounds++){
-        clz_vec = vclz_u8(pop_vec);
+    for (rounds = 0; rounds < 2; rounds++){
+        clz_vec = vclzq_u8(pop_vec);
         pop_vec <<= clz_vec;
-        clo_vec = vclz_u8(~pop_vec);
+        clo_vec = vclzq_u8(~pop_vec);
         pop_vec <<= clo_vec;
         clb_vec = clz_vec + clo_vec;
 
@@ -93,11 +107,14 @@ void vector_pext_3(uint64_t result_array[],
         c_vec <<= clb_vec;
     }
 
+    uint8x8_t popcount_low = vrev64_u8(vget_low_u8(popcount_vec)),
+              popcount_high = vrev64_u8(vget_high_u8(popcount_vec));
+    uint64_t a_field = (uint64_t) rejoin(ra_vec, popcount_low),
+             b_field = (uint64_t) rejoin(rb_vec, popcount_low),
+             c_field = (uint64_t) rejoin(rc_vec, popcount_low);
+    uint64_t popcount_field = (uint64_t) (popcount_low + popcount_high);
+
     uint64_t a_result = 0LL, b_result = 0LL, c_result = 0LL;
-    uint64_t popcount_field = (uint64_t) vrev64_u8(popcount_vec),
-             a_field = (uint64_t) vrev64_u8(ra_vec),
-             b_field = (uint64_t) vrev64_u8(rb_vec),
-             c_field = (uint64_t) vrev64_u8(rc_vec);
 
     for (i = 0; i < 8; i++){
         a_result <<= (popcount_field & 255);
