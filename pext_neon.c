@@ -1,12 +1,15 @@
 // Jan 4, 2023
 
-#include <arm_neon.h>
 #include <caml/mlvalues.h>
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+
+#ifdef __aarch64__
+#include <arm_neon.h>
 
 uint64_t vector_pext(uint64_t pop_mask, uint64_t set_mask)
 {
@@ -141,6 +144,19 @@ CAMLprim value vector_pext_stub(value a, value b)
     return Val_long(vector_pext(Long_val(a), Long_val(b)));
 }
 
+#else
+
+uint64_t intel_pext(uint64_t pop_mask, uint64_t set_mask)
+{
+    uint64_t result;
+    asm("pext %1, %2, %0" :
+        "=r" (result) :
+        "r" (pop_mask), "r" (set_mask));
+    return result;
+}
+
+#endif /* __aarch64__ */
+
 uint64_t pext_3_values[3];
 
 CAMLprim value vector_pext_3_stub(value a, value b, value c, value d)
@@ -149,7 +165,15 @@ CAMLprim value vector_pext_3_stub(value a, value b, value c, value d)
              b_ = Long_val(b),
              c_ = Long_val(c),
              d_ = Long_val(d);
+
+#ifdef __aarch64__
     vector_pext_3(pext_3_values, a_, b_, c_, d_);
+#else
+    pext_3_values[0] = intel_pext(a_, b_);
+    pext_3_values[1] = intel_pext(a_, c_);
+    pext_3_values[2] = intel_pext(a_, d_);
+#endif /* __aarch64__ */
+
     return Val_unit;
 }
 

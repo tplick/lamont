@@ -566,7 +566,7 @@ let suit_count pop_mask shift =
     bitcount_array.((pop_mask lsr shift) land 8191)
 [@@inline]
 
-external vec_pext : int -> int -> int = "vector_pext_stub" [@@noalloc]
+(* external vec_pext : int -> int -> int = "vector_pext_stub" [@@noalloc] *)
 external vec_pext_3 : int -> int -> int -> int -> unit = "vector_pext_3_stub" [@@noalloc]
 external vec_pext_3_retrieve : int -> int = "vector_pext_3_retrieve" [@@noalloc]
 
