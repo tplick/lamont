@@ -1,0 +1,4 @@
+Known bugs in version 2.0:
+
+- Deal #4475 gives different results in normal mode vs. verify mode.
+
