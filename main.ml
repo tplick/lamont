@@ -150,7 +150,7 @@ let print_benchmark_hands () =
         let PackedHand w, PackedHand x, PackedHand y, PackedHand z = d.d_hands
         in Printf.printf "    (%d, %d, %d);\n" w x y
     in
-    for i = 1 to 10000 do
+    for i = 1 to 100000 do
         let d = new_deal () in
         print_hand d
     done
