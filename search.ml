@@ -1479,7 +1479,7 @@ let clean_tt_tower tower comparison new_middle =
     List.iter (fun (tt, filter) ->
         clear_bloom filter;
         TTHashtbl.filter_map_inplace (fun k ((v, m, u) as x) ->
-            if comparison v m && comparison m new_middle
+            if comparison v m && comparison m new_middle && abs (new_middle - v) <= 1
                 then (set_bloom filter (make_bloom_key k); Some x) else None)
             tt)
         tower
