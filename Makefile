@@ -5,7 +5,7 @@ _default:
 	ocamlopt.opt -S -I +unix unix.cmxa pext_neon.o c_all.ml -o exe.opt
 
 speedtest:
-	zsh -c 'for ((i=0;i<20;i++)); do time ./exe.opt -bench 100 >/dev/null; done'
+	zsh -c 'for ((i=0;i<20;i++)); do time ./lamont.sh -bench 100 >/dev/null; done'
 
 benchlite:
-	zsh -c 'for ((i=0;i<20;i++)); do time ./exe.opt -bench-lite 100000 >/dev/null; done'
+	zsh -c 'for ((i=0;i<20;i++)); do time ./lamont.sh -bench-lite 100000 >/dev/null; done'
